@@ -15,7 +15,7 @@ Flask + MariaDB app that mirrors Annex I and Annex III structures from Commissio
 ### Ephemeral MariaDB (recommended for reproducible local dev)
 1) Option A (simplest): `nix run .#db-start` (nix provides `mysqld`/`mysql` and keeps everything under `/tmp/legidb-mariadb` by default).
 2) Option B: `nix develop`, then run `scripts/start_ephemeral_mariadb.sh`.
-This boots MariaDB on `127.0.0.1:3307` with socket under `/tmp/legidb-mariadb/mysql.sock` and user/db `legidb`/`legidb`. Nothing is installed globally; delete `/tmp/legidb-mariadb` or run `scripts/stop_ephemeral_mariadb.sh --clean` to wipe it.
+This boots MariaDB on `127.0.0.1:3307` with socket under `/tmp/legidb-mariadb/mysql.sock` and user/db `legidb`/`legidb`. Nothing is installed globally; delete `/tmp/legidb-mariadb` or run `scripts/stop_ephemeral_mariadb.sh --clean` (or `nix run .#db-stop -- --clean`) to wipe it.
 3) Load schema/data (with socket for speed):
 ```
 mysql --socket=/tmp/legidb-mariadb/mysql.sock -u legidb -plegidb legidb < data/schema.sql
@@ -31,7 +31,7 @@ python run.py
 # or: nix run .#app   (uses the flake-provided Python env; sets PYTHONPATH to repo root)
 ```
 6) Stop and clean:
-`nix run .#db-stop` or `scripts/stop_ephemeral_mariadb.sh [--clean]` (adds `--clean` to delete `/tmp/legidb-mariadb`). Set `LEGIDB_BASE_DIR` to override the temp location (must match for start/stop/app).
+`nix run .#db-stop` or `scripts/stop_ephemeral_mariadb.sh [--clean]` (with `-- --clean` when using `nix run` to pass the flag through; `--clean` deletes `/tmp/legidb-mariadb`). Set `LEGIDB_BASE_DIR` to override the temp location (must match for start/stop/app).
 
 ### Persistent MariaDB (optional)
 Provision MariaDB however you like, create the `legidb` user/database, apply `data/schema.sql` and `data/sample_data.sql` (or `DATABASE_URL=... python scripts/seed_data.py`), and set `DATABASE_URL` to point at your instance.
