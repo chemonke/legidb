@@ -1,7 +1,8 @@
 from flask import Blueprint, current_app, render_template, request
 from sqlalchemy import or_, select
+from sqlalchemy.orm import selectinload
 
-from .models import Food, FoodCategory, Simulant
+from .models import Food, FoodCategory, Simulant, SmEntry, Substance
 
 pages_bp = Blueprint("pages", __name__)
 
@@ -20,29 +21,28 @@ def search():
     q = request.args.get("q", "").strip()
     session = _get_session()
 
-    foods = []
+    substances = []
     if q:
         stmt = (
-            select(Food)
-            .join(FoodCategory)
+            select(Substance)
+            .options(
+                selectinload(Substance.sm_entries).selectinload(SmEntry.limits),
+                selectinload(Substance.sm_entries).selectinload(SmEntry.group_restrictions),
+            )
             .where(
                 or_(
-                    Food.name.ilike(f"%{q}%"),
-                    FoodCategory.description.ilike(f"%{q}%"),
-                    FoodCategory.ref_no.ilike(f"%{q}%"),
+                    Substance.cas_no.ilike(f"%{q}%"),
+                    Substance.smiles.ilike(f"%{q}%"),
                 )
             )
-            .order_by(Food.name)
+            .order_by(Substance.cas_no)
         )
-        foods = session.execute(stmt).scalars().all()
-
-    categories = session.execute(select(FoodCategory).order_by(FoodCategory.ref_no)).scalars().all()
+        substances = session.execute(stmt).scalars().all()
 
     return render_template(
         "search.html",
         query=q,
-        foods=foods,
-        categories=categories,
+        substances=substances,
     )
 
 
@@ -82,3 +82,8 @@ def charts():
         foods_per_category=foods_per_category,
         simulants_per_category=simulants_per_category,
     )
+
+
+@pages_bp.route("/api")
+def api_docs():
+    return render_template("api.html")

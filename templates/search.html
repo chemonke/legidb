@@ -3,39 +3,61 @@
 {% block content %}
 <section class="section">
   <div class="section-header">
-    <h1>Search foods and categories</h1>
-    <p>Find foods by name or browse Annex III categories. Results show linked simulants.</p>
+    <h1>Search substances</h1>
+    <p>Look up authorised substances by CAS number or substance name/identifier. Food categories are not part of this search.</p>
   </div>
   <form class="search-form" method="get">
-    <input type="text" name="q" placeholder="Search by food name or category (e.g. 01.01)" value="{{ query }}">
+    <input type="text" name="q" placeholder="Search by CAS number or substance name (e.g. 67-64-1)" value="{{ query }}">
     <button type="submit">Search</button>
   </form>
 
-  {% if query and not foods %}
+  {% if query and not substances %}
     <p class="muted">No matches for "{{ query }}". Try a different term.</p>
   {% endif %}
 
-  {% if foods %}
+  {% if substances %}
     <table class="data-table">
       <thead>
         <tr>
-          <th>Food</th>
-          <th>Category</th>
-          <th>Simulants</th>
+          <th>CAS number</th>
+          <th>Name / identifier</th>
+          <th>Identifiers</th>
+          <th>Limits & notes</th>
         </tr>
       </thead>
       <tbody>
-        {% for food in foods %}
+        {% for substance in substances %}
           <tr>
-            <td>{{ food.name }}</td>
+            <td>{{ substance.cas_no or "—" }}</td>
+            <td>{{ substance.smiles or "—" }}</td>
             <td>
-              {{ food.food_category.ref_no }} - {{ food.food_category.description }}
+              <div>FCM No: {{ substance.fcm_no or "—" }}</div>
+              <div>EC Ref No: {{ substance.ec_ref_no or "—" }}</div>
             </td>
             <td>
-              {% if food.food_category.simulants %}
-                {{ food.food_category.simulants | map(attribute='abbreviation') | join(', ') }}
+              {% if substance.sm_entries %}
+                {% for entry in substance.sm_entries %}
+                  <div class="limit-block">
+                    {% if entry.limits %}
+                      {% for limit in entry.limits %}
+                        <span class="pill tight">{{ limit.kind.value }}
+                          {% if limit.value is not none %}
+                            {{ "%.3f"|format(limit.value) }}
+                          {% elif limit.raw_expression %}
+                            {{ limit.raw_expression }}
+                          {% endif %}
+                        </span>
+                      {% endfor %}
+                    {% else %}
+                      <span class="muted">No SML recorded.</span>
+                    {% endif %}
+                    {% if entry.restrictions_and_specifications %}
+                      <div class="muted">{{ entry.restrictions_and_specifications }}</div>
+                    {% endif %}
+                  </div>
+                {% endfor %}
               {% else %}
-                <span class="muted">Not linked</span>
+                <span class="muted">No Annex I entry stored for this substance.</span>
               {% endif %}
             </td>
           </tr>
@@ -43,17 +65,5 @@
       </tbody>
     </table>
   {% endif %}
-
-  <div class="category-list">
-    <h2>Annex III categories</h2>
-    <div class="pill-grid">
-      {% for category in categories %}
-        <div class="pill">
-          <div class="pill-title">{{ category.ref_no }}</div>
-          <div class="pill-desc">{{ category.description }}</div>
-        </div>
-      {% endfor %}
-    </div>
-  </div>
 </section>
 {% endblock %}
