@@ -9,6 +9,23 @@ SOCKET="$BASE_DIR/mysql.sock"
 PID_FILE="$BASE_DIR/mariadb.pid"
 LOG_FILE="$BASE_DIR/mariadb.log"
 PORT="${PORT:-3307}"
+# Try to locate the repo root to find schema/sample files:
+# 1) LEGIDB_ROOT override
+# 2) Current working dir if it has data/schema.sql
+# 3) git rev-parse (when available)
+# 4) Script location fallback (works when running the script directly from the repo)
+if [[ -n "${LEGIDB_ROOT:-}" ]]; then
+  REPO_ROOT="$LEGIDB_ROOT"
+elif [[ -f "$PWD/data/schema.sql" ]]; then
+  REPO_ROOT="$PWD"
+else
+  REPO_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || true)"
+  if [[ -z "$REPO_ROOT" ]]; then
+    REPO_ROOT="$(cd -- "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+  fi
+fi
+SCHEMA_SQL="$REPO_ROOT/data/schema.sql"
+SAMPLE_SQL="$REPO_ROOT/data/sample_data.sql"
 
 mkdir -p "$DATA_DIR"
 
@@ -80,6 +97,25 @@ CREATE USER IF NOT EXISTS 'legidb'@'127.0.0.1' IDENTIFIED BY 'legidb';
 GRANT ALL ON legidb.* TO 'legidb'@'127.0.0.1';
 FLUSH PRIVILEGES;
 SQL
+
+# Apply schema every time (idempotent) and load sample data on an empty DB.
+if [[ -f "$SCHEMA_SQL" ]]; then
+  mysql --socket="$SOCKET" -u root <"$SCHEMA_SQL"
+else
+  echo "Warning: $SCHEMA_SQL not found; skipping schema load" >&2
+fi
+
+if [[ -f "$SAMPLE_SQL" ]]; then
+  EXISTING_ROWS=$(mysql --socket="$SOCKET" -N -B -u root -e "SELECT COUNT(*) FROM legidb.food_categories;" 2>/dev/null || echo 0)
+  if [[ "${EXISTING_ROWS:-0}" -eq 0 ]]; then
+    mysql --socket="$SOCKET" -u root legidb <"$SAMPLE_SQL"
+    echo "Loaded sample data from $SAMPLE_SQL"
+  else
+    echo "Skipping sample data load; legidb.food_categories already has $EXISTING_ROWS rows"
+  fi
+else
+  echo "Warning: $SAMPLE_SQL not found; skipping sample data load" >&2
+fi
 
 cat <<EOF
 MariaDB ready on 127.0.0.1:${PORT}

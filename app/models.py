@@ -53,6 +53,11 @@ class FoodCategory(Base):
         passive_deletes=True,
     )
 
+    def __repr__(self):
+        return f"FoodCategory {self.ref_no}: {self.description}"
+
+    __str__ = __repr__
+
 
 class Food(Base):
     __tablename__ = "foods"
@@ -67,6 +72,11 @@ class Food(Base):
 
     food_category = relationship("FoodCategory", back_populates="foods")
 
+    def __repr__(self):
+        return f"Food {self.name or self.id}"
+
+    __str__ = __repr__
+
 
 class Simulant(Base):
     __tablename__ = "simulants"
@@ -80,6 +90,11 @@ class Simulant(Base):
         secondary="food_category_simulants",
         back_populates="simulants",
     )
+
+    def __repr__(self):
+        return f"Simulant {self.abbreviation}: {self.name}"
+
+    __str__ = __repr__
 
 
 class FoodCategorySimulant(Base):
@@ -116,6 +131,12 @@ class Substance(Base):
         passive_deletes=True,
     )
 
+    def __repr__(self):
+        cas = self.cas_no or "no CAS"
+        return f"Substance FCM {self.fcm_no} ({cas})"
+
+    __str__ = __repr__
+
 
 class SmEntry(Base):
     __tablename__ = "sm_entries"
@@ -140,6 +161,11 @@ class SmEntry(Base):
         secondary="sm_entry_group_restrictions",
         back_populates="sm_entries",
     )
+
+    def __repr__(self):
+        return f"SM Entry FCM {self.fcm_no} / substance {self.substance_id}"
+
+    __str__ = __repr__
 
 
 class SmEntryLimit(Base):
