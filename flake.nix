@@ -37,6 +37,7 @@
           name = "app";
           runtimeInputs = [ pythonEnv ];
           text = ''
+            export PYTHONPATH=${./.}
             export DATABASE_URL=''${DATABASE_URL:-mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb}
             echo "Starting Flask app with DATABASE_URL=$DATABASE_URL"
             exec python ${./run.py}

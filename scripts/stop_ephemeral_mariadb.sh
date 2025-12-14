@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-BASE_DIR="${TMPDIR:-/tmp}/legidb-mariadb"
+BASE_DIR="${LEGIDB_BASE_DIR:-/tmp/legidb-mariadb}"
 SOCKET="$BASE_DIR/mysql.sock"
 PID_FILE="$BASE_DIR/mariadb.pid"
 DO_CLEAN="${1:-}"

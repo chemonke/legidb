@@ -9,7 +9,8 @@ from .api import api_bp
 
 
 def create_app():
-    app = Flask(__name__)
+    # Templates/static live at repo root, not inside the app package.
+    app = Flask(__name__, template_folder="../templates", static_folder="../static")
 
     app.config["DATABASE_URL"] = os.environ.get(
         "DATABASE_URL",

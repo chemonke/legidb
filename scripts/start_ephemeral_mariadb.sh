@@ -3,7 +3,7 @@
 
 set -euo pipefail
 
-BASE_DIR="${TMPDIR:-/tmp}/legidb-mariadb"
+BASE_DIR="${LEGIDB_BASE_DIR:-/tmp/legidb-mariadb}"
 DATA_DIR="$BASE_DIR/data"
 SOCKET="$BASE_DIR/mysql.sock"
 PID_FILE="$BASE_DIR/mariadb.pid"
@@ -35,8 +35,14 @@ if [[ ! -d "$DATA_DIR/mysql" ]]; then
   set -e
 fi
 
-MYSQLD_BIN="$(command -v mysqld)"
+MYSQLD_BIN="$(command -v mariadbd || command -v mysqld)"
 
+if [[ -z "$MYSQLD_BIN" ]]; then
+  echo "Could not find mariadbd/mysqld on PATH" >&2
+  exit 1
+fi
+
+# MariaDB 11.x drops --daemonize; run it in the background explicitly instead.
 "$MYSQLD_BIN" \
   --no-defaults \
   --datadir="$DATA_DIR" \
@@ -47,16 +53,24 @@ MYSQLD_BIN="$(command -v mysqld)"
   --skip-name-resolve \
   --log-error="$LOG_FILE" \
   --skip-networking=0 \
-  --symbolic-links=0 \
-  --daemonize
+  --symbolic-links=0 &
+MYSQLD_PID=$!
+echo "$MYSQLD_PID" >"$PID_FILE"
 
 # Wait for mysqld to accept connections.
+READY=0
 for _ in {1..30}; do
   if mysqladmin --socket="$SOCKET" ping --silent >/dev/null 2>&1; then
+    READY=1
     break
   fi
   sleep 1
 done
+
+if [[ $READY -ne 1 ]]; then
+  echo "MariaDB failed to start within timeout. See log: $LOG_FILE" >&2
+  exit 1
+fi
 
 mysql --socket="$SOCKET" -u root <<'SQL'
 CREATE DATABASE IF NOT EXISTS legidb;
@@ -72,6 +86,7 @@ MariaDB ready on 127.0.0.1:${PORT}
 Socket: $SOCKET
 PID file: $PID_FILE
 Log: $LOG_FILE
+Data dir: $DATA_DIR (override with LEGIDB_BASE_DIR if needed)
 Suggested export:
   export DATABASE_URL="mysql+pymysql://legidb:legidb@127.0.0.1:${PORT}/legidb"
 EOF
