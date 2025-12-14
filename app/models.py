@@ -40,11 +40,17 @@ class FoodCategory(Base):
     acidic = Column(Boolean)
     frf = Column(Integer)
 
-    foods = relationship("Food", back_populates="food_category")
+    foods = relationship(
+        "Food",
+        back_populates="food_category",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     simulants = relationship(
         "Simulant",
         secondary="food_category_simulants",
         back_populates="food_categories",
+        passive_deletes=True,
     )
 
 
@@ -53,7 +59,11 @@ class Food(Base):
 
     id = Column(Integer, primary_key=True)
     name = Column(String(255))
-    food_category_id = Column(Integer, ForeignKey("food_categories.id"), nullable=False)
+    food_category_id = Column(
+        Integer,
+        ForeignKey("food_categories.id", ondelete="CASCADE"),
+        nullable=False,
+    )
 
     food_category = relationship("FoodCategory", back_populates="foods")
 
@@ -78,13 +88,13 @@ class FoodCategorySimulant(Base):
 
     food_category_id = Column(
         Integer,
-        ForeignKey("food_categories.id"),
+        ForeignKey("food_categories.id", ondelete="CASCADE"),
         primary_key=True,
         nullable=False,
     )
     simulant_id = Column(
         Integer,
-        ForeignKey("simulants.id"),
+        ForeignKey("simulants.id", ondelete="CASCADE"),
         primary_key=True,
         nullable=False,
     )
@@ -99,14 +109,19 @@ class Substance(Base):
     fcm_no = Column(Integer)
     ec_ref_no = Column(Integer)
 
-    sm_entries = relationship("SmEntry", back_populates="substance")
+    sm_entries = relationship(
+        "SmEntry",
+        back_populates="substance",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
 
 
 class SmEntry(Base):
     __tablename__ = "sm_entries"
 
     id = Column(Integer, primary_key=True)
-    substance_id = Column(Integer, ForeignKey("substances.id"), nullable=False)
+    substance_id = Column(Integer, ForeignKey("substances.id", ondelete="CASCADE"), nullable=False)
     fcm_no = Column(Integer)
     use_as_additive_or_ppa = Column(Boolean, nullable=False)
     use_as_monomer_or_starting_substance = Column(Boolean, nullable=False)
@@ -114,7 +129,12 @@ class SmEntry(Base):
     restrictions_and_specifications = Column(Text)
 
     substance = relationship("Substance", back_populates="sm_entries")
-    limits = relationship("SmEntryLimit", back_populates="sm_entry")
+    limits = relationship(
+        "SmEntryLimit",
+        back_populates="sm_entry",
+        cascade="all, delete-orphan",
+        passive_deletes=True,
+    )
     group_restrictions = relationship(
         "Annex1GroupRestriction",
         secondary="sm_entry_group_restrictions",
@@ -127,7 +147,7 @@ class SmEntryLimit(Base):
     __table_args__ = (UniqueConstraint("sm_entry_id", "kind"),)
 
     id = Column(Integer, primary_key=True)
-    sm_entry_id = Column(Integer, ForeignKey("sm_entries.id"), nullable=False)
+    sm_entry_id = Column(Integer, ForeignKey("sm_entries.id", ondelete="CASCADE"), nullable=False)
     kind = Column(SqlEnum(SmlKind), nullable=False)
     value = Column(Numeric(10, 3))
     unit_basis = Column(SqlEnum(LimitBasis), nullable=False, default=LimitBasis.FOOD_KG)
@@ -156,10 +176,15 @@ class SmEntryGroupRestriction(Base):
     __tablename__ = "sm_entry_group_restrictions"
     __table_args__ = (UniqueConstraint("sm_id", "group_restriction_id"),)
 
-    sm_id = Column(Integer, ForeignKey("sm_entries.id"), primary_key=True, nullable=False)
+    sm_id = Column(
+        Integer,
+        ForeignKey("sm_entries.id", ondelete="CASCADE"),
+        primary_key=True,
+        nullable=False,
+    )
     group_restriction_id = Column(
         Integer,
-        ForeignKey("annex1_group_restrictions.id"),
+        ForeignKey("annex1_group_restrictions.id", ondelete="CASCADE"),
         primary_key=True,
         nullable=False,
     )

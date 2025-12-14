@@ -1,5 +1,7 @@
 import os
 from flask import Flask
+from flask_admin import Admin
+from flask_admin.contrib.sqla import ModelView
 from sqlalchemy import create_engine
 from sqlalchemy.orm import scoped_session, sessionmaker
 
@@ -13,6 +15,7 @@ from .models import (
     SmEntry,
     SmEntryGroupRestriction,
     SmEntryLimit,
+    SmCondition,
     Substance,
     SmlKind,
 )
@@ -23,6 +26,8 @@ from .api import api_bp
 def create_app():
     # Templates/static live at repo root, not inside the app package.
     app = Flask(__name__, template_folder="../templates", static_folder="../static")
+    # Needed for Flask-Admin flash/session handling. Override via FLASK_SECRET_KEY.
+    app.config["SECRET_KEY"] = os.environ.get("FLASK_SECRET_KEY", "dev-secret-key")
 
     app.config["DATABASE_URL"] = os.environ.get(
         "DATABASE_URL",
@@ -41,12 +46,42 @@ def create_app():
     app.register_blueprint(pages_bp)
     app.register_blueprint(api_bp, url_prefix="/api")
 
+    _register_admin(app, SessionLocal)
+
     @app.teardown_appcontext
     def shutdown_session(response_or_exc):
         SessionLocal.remove()
         return response_or_exc
 
     return app
+
+
+def _register_admin(app, SessionLocal):
+    """Expose a relational-aware editor via Flask-Admin."""
+    admin = Admin(app, name="LegiDB admin", template_mode="bootstrap4", url="/admin")
+
+    class BaseView(ModelView):
+        can_view_details = True
+        page_size = 50
+
+    def view(model, category, excluded=None):
+        attrs = {}
+        if excluded:
+            attrs["form_excluded_columns"] = excluded
+        cls = type(f"{model.__name__}Admin", (BaseView,), attrs)
+        return cls(model, SessionLocal, category=category)
+
+    admin.add_view(view(FoodCategory, "Foods", excluded=["foods", "simulants"]))
+    admin.add_view(view(Food, "Foods"))
+    admin.add_view(view(Simulant, "Foods", excluded=["food_categories"]))
+    admin.add_view(view(FoodCategorySimulant, "Foods"))
+
+    admin.add_view(view(Substance, "Substances", excluded=["sm_entries"]))
+    admin.add_view(view(SmEntry, "Substances", excluded=["limits", "group_restrictions"]))
+    admin.add_view(view(SmEntryLimit, "Substances"))
+    admin.add_view(view(Annex1GroupRestriction, "Substances", excluded=["sm_entries"]))
+    admin.add_view(view(SmEntryGroupRestriction, "Substances"))
+    admin.add_view(view(SmCondition, "Substances"))
 
 
 def _seed_if_empty(SessionLocal):

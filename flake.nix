@@ -11,6 +11,7 @@
 
         pythonEnv = pkgs.python3.withPackages (ps: with ps; [
           flask
+          flask-admin
           sqlalchemy
           pymysql
         ]);
@@ -37,7 +38,8 @@
           name = "app";
           runtimeInputs = [ pythonEnv ];
           text = ''
-            export PYTHONPATH=${./.}
+            # Prefer live working tree (for new templates/static files), fallback to store copy.
+            export PYTHONPATH="$PWD:${./.}"
             export DATABASE_URL=''${DATABASE_URL:-mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb}
             echo "Starting Flask app with DATABASE_URL=$DATABASE_URL"
             exec python ${./run.py}

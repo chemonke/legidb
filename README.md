@@ -32,6 +32,7 @@ python run.py
 ```
 6) Stop and clean:
 `nix run .#db-stop` or `scripts/stop_ephemeral_mariadb.sh [--clean]` (with `-- --clean` when using `nix run` to pass the flag through; `--clean` deletes `/tmp/legidb-mariadb`). Set `LEGIDB_BASE_DIR` to override the temp location (must match for start/stop/app).
+7) Database admin UI: visit `/admin` for a relational editor (Flask-Admin) with search, filtering, and FK-aware forms.
 
 ### Persistent MariaDB (optional)
 Provision MariaDB however you like, create the `legidb` user/database, apply `data/schema.sql` and `data/sample_data.sql` (or `DATABASE_URL=... python scripts/seed_data.py`), and set `DATABASE_URL` to point at your instance.

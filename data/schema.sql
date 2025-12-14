@@ -13,7 +13,7 @@ CREATE TABLE IF NOT EXISTS foods (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255),
   food_category_id INT NOT NULL,
-  FOREIGN KEY (food_category_id) REFERENCES food_categories(id)
+  FOREIGN KEY (food_category_id) REFERENCES food_categories(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS simulants (
@@ -27,8 +27,8 @@ CREATE TABLE IF NOT EXISTS food_category_simulants (
   simulant_id INT NOT NULL,
   PRIMARY KEY (food_category_id, simulant_id),
   UNIQUE KEY unique_food_sim (food_category_id, simulant_id),
-  FOREIGN KEY (food_category_id) REFERENCES food_categories(id),
-  FOREIGN KEY (simulant_id) REFERENCES simulants(id)
+  FOREIGN KEY (food_category_id) REFERENCES food_categories(id) ON DELETE CASCADE,
+  FOREIGN KEY (simulant_id) REFERENCES simulants(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS substances (
@@ -47,7 +47,7 @@ CREATE TABLE IF NOT EXISTS sm_entries (
   use_as_monomer_or_starting_substance BOOLEAN NOT NULL,
   frf_applicable BOOLEAN NOT NULL,
   restrictions_and_specifications TEXT,
-  FOREIGN KEY (substance_id) REFERENCES substances(id)
+  FOREIGN KEY (substance_id) REFERENCES substances(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS sm_entry_limits (
@@ -58,7 +58,7 @@ CREATE TABLE IF NOT EXISTS sm_entry_limits (
   unit_basis ENUM('FOOD_KG','ARTICLE','SURFACE_DM2') NOT NULL DEFAULT 'FOOD_KG',
   raw_expression VARCHAR(64),
   UNIQUE KEY unique_sm_kind (sm_entry_id, kind),
-  FOREIGN KEY (sm_entry_id) REFERENCES sm_entries(id)
+  FOREIGN KEY (sm_entry_id) REFERENCES sm_entries(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS annex1_group_restrictions (
@@ -74,8 +74,8 @@ CREATE TABLE IF NOT EXISTS sm_entry_group_restrictions (
   group_restriction_id INT NOT NULL,
   PRIMARY KEY (sm_id, group_restriction_id),
   UNIQUE KEY unique_sm_group (sm_id, group_restriction_id),
-  FOREIGN KEY (sm_id) REFERENCES sm_entries(id),
-  FOREIGN KEY (group_restriction_id) REFERENCES annex1_group_restrictions(id)
+  FOREIGN KEY (sm_id) REFERENCES sm_entries(id) ON DELETE CASCADE,
+  FOREIGN KEY (group_restriction_id) REFERENCES annex1_group_restrictions(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS sm_conditions (
