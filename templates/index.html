@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="hero">
+  <div>
+    <h1>EU 10/2011 plastics FCM database</h1>
+    <p>
+      This app wraps the Annex I and Annex III structures from Commission Regulation (EU) No 10/2011.
+      Use it to explore authorised substances, food categories, simulants, and their migration limits.
+    </p>
+    <div class="actions">
+      <a class="button" href="{{ url_for('pages.search') }}">Search the data</a>
+      <a class="button secondary" href="{{ url_for('pages.charts') }}">See quick stats</a>
+    </div>
+  </div>
+  <div class="hero-card">
+    <h3>What is inside?</h3>
+    <ul>
+      <li>Food categories and their reference numbers (Annex III).</li>
+      <li>Simulants linked to food categories.</li>
+      <li>Authorised substances with SML / SML(T) context.</li>
+      <li>REST API endpoints for programmatic access.</li>
+    </ul>
+  </div>
+</section>
+
+<section class="grid">
+  <article>
+    <h3>Purpose</h3>
+    <p>
+      Aligns daily compliance checks with the structure of EU 10/2011: quickly look up
+      categories, simulants, and migration constraints when assessing materials.
+    </p>
+  </article>
+  <article>
+    <h3>Workflow</h3>
+    <p>
+      1) Load data into MariaDB; 2) Search by food category or name; 3) Pull JSON from the API;
+      4) Visualise coverage through the graphics tab.
+    </p>
+  </article>
+  <article>
+    <h3>Data provenance</h3>
+    <p>
+      Tables mirror Annex I (Table 1, 2) and Annex III structures and preserve raw expressions
+      such as ND and unit basis. Seed data can be extended as your regulatory library grows.
+    </p>
+  </article>
+</section>
+{% endblock %}

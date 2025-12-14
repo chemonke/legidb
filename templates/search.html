@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block content %}
+<section class="section">
+  <div class="section-header">
+    <h1>Search foods and categories</h1>
+    <p>Find foods by name or browse Annex III categories. Results show linked simulants.</p>
+  </div>
+  <form class="search-form" method="get">
+    <input type="text" name="q" placeholder="Search by food name or category (e.g. 01.01)" value="{{ query }}">
+    <button type="submit">Search</button>
+  </form>
+
+  {% if query and not foods %}
+    <p class="muted">No matches for "{{ query }}". Try a different term.</p>
+  {% endif %}
+
+  {% if foods %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th>Food</th>
+          <th>Category</th>
+          <th>Simulants</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for food in foods %}
+          <tr>
+            <td>{{ food.name }}</td>
+            <td>
+              {{ food.food_category.ref_no }} - {{ food.food_category.description }}
+            </td>
+            <td>
+              {% if food.food_category.simulants %}
+                {{ food.food_category.simulants | map(attribute='abbreviation') | join(', ') }}
+              {% else %}
+                <span class="muted">Not linked</span>
+              {% endif %}
+            </td>
+          </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  {% endif %}
+
+  <div class="category-list">
+    <h2>Annex III categories</h2>
+    <div class="pill-grid">
+      {% for category in categories %}
+        <div class="pill">
+          <div class="pill-title">{{ category.ref_no }}</div>
+          <div class="pill-desc">{{ category.description }}</div>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</section>
+{% endblock %}

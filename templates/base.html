@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>LegiDB - EU 10/2011</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <header>
+    <div class="branding">
+      <div class="logo-circle">L</div>
+      <div>
+        <div class="title">LegiDB</div>
+        <div class="subtitle">EU 10/2011 plastics FCM helper</div>
+      </div>
+    </div>
+    <nav>
+      <a href="{{ url_for('pages.index') }}">Overview</a>
+      <a href="{{ url_for('pages.search') }}">Search</a>
+      <a href="{{ url_for('pages.charts') }}">Graphics</a>
+      <a href="{{ url_for('api.foods') }}">API</a>
+    </nav>
+  </header>
+
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer>
+    Built for Annex I and III data exploration (EU 10/2011).
+  </footer>
+</body>
+</html>

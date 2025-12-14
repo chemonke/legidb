@@ -1,0 +1,71 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script>
+    google.charts.load('current', {'packages':['corechart','table']});
+    google.charts.setOnLoadCallback(drawCharts);
+
+    function drawCharts() {
+      drawFoodCategoryChart();
+      drawSimulantChart();
+    }
+
+    function drawFoodCategoryChart() {
+      const data = new google.visualization.DataTable();
+      data.addColumn('string', 'Category');
+      data.addColumn('number', 'Foods');
+      data.addColumn({type: 'string', role: 'tooltip'});
+      data.addRows([
+        {% for ref_no, description, total, frf in foods_per_category %}
+          ['{{ ref_no }}', {{ total }}, '{{ description }} (FRF: {{ frf if frf is not none else "n/a" }})'],
+        {% endfor %}
+      ]);
+      const options = {
+        title: 'Foods per Annex III category',
+        legend: { position: 'none' },
+        chartArea: { width: '80%', height: '70%' },
+        hAxis: { title: 'Category' },
+        vAxis: { title: 'Foods' }
+      };
+      const chart = new google.visualization.ColumnChart(document.getElementById('food-category-chart'));
+      chart.draw(data, options);
+    }
+
+    function drawSimulantChart() {
+      const data = new google.visualization.DataTable();
+      data.addColumn('string', 'Simulant');
+      data.addColumn('number', 'Linked categories');
+      data.addRows([
+        {% for abbr, name, total in simulants_per_category %}
+          ['{{ abbr }}', {{ total }}],
+        {% endfor %}
+      ]);
+      const options = {
+        title: 'Simulant coverage across categories',
+        legend: { position: 'none' },
+        chartArea: { width: '80%', height: '70%' },
+        colors: ['#1366d6']
+      };
+      const chart = new google.visualization.BarChart(document.getElementById('simulant-chart'));
+      chart.draw(data, options);
+    }
+  </script>
+{% endblock %}
+
+{% block content %}
+<section class="section">
+  <div class="section-header">
+    <h1>Graphics</h1>
+    <p>Quick visual summary powered by Google Charts. Charts update using live DB data.</p>
+  </div>
+  <div class="chart-grid">
+    <div class="chart-card">
+      <div id="food-category-chart"></div>
+    </div>
+    <div class="chart-card">
+      <div id="simulant-chart"></div>
+    </div>
+  </div>
+</section>
+{% endblock %}
