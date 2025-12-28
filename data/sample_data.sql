@@ -65,7 +65,7 @@ INSERT INTO sm_entries (substance_id, fcm_no, use_as_additive_or_ppa, use_as_mon
 (12, 173, 1, 0, 0, NULL),
 (13, 174, 0, 1, 0, NULL);
 
-INSERT INTO sm_entry_limits (sm_entry_id, kind, value, unit_basis, raw_expression) VALUES
+INSERT INTO sm_entry_limits (sm_entry_id, kind, value, unit_basis) VALUES
 (3, 'SML', 0.05, 'FOOD_KG', '0.05'),
 (5, 'SML', 0.05, 'FOOD_KG', '0.05'),
 (6, 'SML', 1, 'FOOD_KG', '1'),
