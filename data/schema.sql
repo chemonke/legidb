@@ -3,15 +3,15 @@ USE legidb;
 
 CREATE TABLE IF NOT EXISTS food_categories (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  ref_no VARCHAR(32) NOT NULL,
+  ref_no VARCHAR(20) NOT NULL UNIQUE,
   description VARCHAR(255) NOT NULL,
-  acidic BOOLEAN,
+  acidic BOOLEAN NOT NULL,
   frf INT
 );
 
 CREATE TABLE IF NOT EXISTS foods (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  name VARCHAR(255),
+  name VARCHAR(255) NOT NULL,
   food_category_id INT NOT NULL,
   FOREIGN KEY (food_category_id) REFERENCES food_categories(id) ON DELETE CASCADE
 );
@@ -19,7 +19,7 @@ CREATE TABLE IF NOT EXISTS foods (
 CREATE TABLE IF NOT EXISTS simulants (
   id INT AUTO_INCREMENT PRIMARY KEY,
   name VARCHAR(255) NOT NULL,
-  abbreviation VARCHAR(16) NOT NULL
+  abbreviation VARCHAR(10) NOT NULL UNIQUE
 );
 
 CREATE TABLE IF NOT EXISTS food_category_simulants (
@@ -33,10 +33,9 @@ CREATE TABLE IF NOT EXISTS food_category_simulants (
 
 CREATE TABLE IF NOT EXISTS substances (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  smiles VARCHAR(255),
-  cas_no VARCHAR(64),
-  fcm_no INT,
-  ec_ref_no INT
+  cas_no VARCHAR(20) NOT NULL UNIQUE,
+  fcm_no INT NOT NULL UNIQUE,
+  ec_ref_no INT NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS sm_entries (
@@ -46,27 +45,16 @@ CREATE TABLE IF NOT EXISTS sm_entries (
   use_as_additive_or_ppa BOOLEAN NOT NULL,
   use_as_monomer_or_starting_substance BOOLEAN NOT NULL,
   frf_applicable BOOLEAN NOT NULL,
+  sml FLOAT,
   restrictions_and_specifications TEXT,
   FOREIGN KEY (substance_id) REFERENCES substances(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS sm_entry_limits (
+CREATE TABLE IF NOT EXISTS group_restrictions (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  sm_entry_id INT NOT NULL,
-  kind ENUM('SML','ND') NOT NULL,
-  value DECIMAL(10,3),
-  unit_basis ENUM('FOOD_KG','ARTICLE','SURFACE_DM2') NOT NULL DEFAULT 'FOOD_KG',
-  raw_expression VARCHAR(64),
-  UNIQUE KEY unique_sm_kind (sm_entry_id, kind),
-  FOREIGN KEY (sm_entry_id) REFERENCES sm_entries(id) ON DELETE CASCADE
-);
-
-CREATE TABLE IF NOT EXISTS annex1_group_restrictions (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  group_restriction_no INT NOT NULL UNIQUE,
-  total_limit_value DECIMAL(10,3),
-  unit_basis ENUM('FOOD_KG','ARTICLE','SURFACE_DM2') NOT NULL DEFAULT 'FOOD_KG',
-  specification TEXT
+  group_sml DECIMAL(18,6) NOT NULL,
+  unit VARCHAR(30) NOT NULL,
+  specification VARCHAR(255)
 );
 
 CREATE TABLE IF NOT EXISTS sm_entry_group_restrictions (
@@ -75,13 +63,13 @@ CREATE TABLE IF NOT EXISTS sm_entry_group_restrictions (
   PRIMARY KEY (sm_id, group_restriction_id),
   UNIQUE KEY unique_sm_group (sm_id, group_restriction_id),
   FOREIGN KEY (sm_id) REFERENCES sm_entries(id) ON DELETE CASCADE,
-  FOREIGN KEY (group_restriction_id) REFERENCES annex1_group_restrictions(id) ON DELETE CASCADE
+  FOREIGN KEY (group_restriction_id) REFERENCES group_restrictions(id) ON DELETE CASCADE
 );
 
 CREATE TABLE IF NOT EXISTS sm_conditions (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  worst_case_time INT,
-  testing_time INT,
-  worst_case_temp INT,
-  testing_temp INT
+  worst_case_time INT NOT NULL,
+  testing_time INT NOT NULL,
+  worst_case_temp INT NOT NULL,
+  testing_temp INT NOT NULL
 );

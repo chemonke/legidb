@@ -114,6 +114,9 @@ class FoodCategorySimulant(Base):
         nullable=False,
     )
 
+    food_category = relationship("FoodCategory")
+    simulant = relationship("Simulant")
+
 
 class Substance(Base):
     __tablename__ = "substances"
@@ -197,6 +200,11 @@ class Annex1GroupRestriction(Base):
         back_populates="group_restrictions",
     )
 
+    def __repr__(self):
+        return f"Annex I restriction {self.group_restriction_no}"
+
+    __str__ = __repr__
+
 
 class SmEntryGroupRestriction(Base):
     __tablename__ = "sm_entry_group_restrictions"
@@ -214,6 +222,9 @@ class SmEntryGroupRestriction(Base):
         primary_key=True,
         nullable=False,
     )
+
+    sm_entry = relationship("SmEntry")
+    group_restriction = relationship("Annex1GroupRestriction")
 
 
 class SmCondition(Base):
