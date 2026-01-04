@@ -1,5 +1,7 @@
 from collections import OrderedDict
+from pathlib import Path
 from flask import Blueprint, current_app, render_template, request
+from markupsafe import Markup, escape
 from sqlalchemy import or_, select
 from sqlalchemy.exc import SQLAlchemyError
 from sqlalchemy.orm import selectinload
@@ -122,6 +124,27 @@ def _pk_identity(model, form):
     return tuple(values)
 
 
+def _read_readme_html():
+    repo_root = Path(current_app.root_path).parent
+    readme_path = repo_root / "README.md"
+    if not readme_path.exists():
+        return None, "README.md not found."
+    try:
+        text = readme_path.read_text(encoding="utf-8")
+    except OSError as exc:  # pragma: no cover - unlikely on read
+        return None, f"Could not read README.md: {exc}"
+
+    html = None
+    try:
+        import markdown  # type: ignore
+
+        html = markdown.markdown(text, extensions=["fenced_code", "tables"])
+    except ImportError:
+        html = f"<pre>{escape(text)}</pre>"
+
+    return Markup(html), None
+
+
 @pages_bp.route("/")
 def index():
     return render_template("index.html")
@@ -198,6 +221,12 @@ def charts():
 @pages_bp.route("/api")
 def api_docs():
     return render_template("api.html")
+
+
+@pages_bp.route("/about")
+def about():
+    readme_html, readme_error = _read_readme_html()
+    return render_template("about.html", readme_html=readme_html, readme_error=readme_error)
 
 
 @pages_bp.route("/editor", methods=["GET", "POST"])

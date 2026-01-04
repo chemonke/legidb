@@ -1,111 +1,136 @@
 {% extends "base.html" %}
 
 {% block content %}
-<div class="section">
-  <div class="section-header">
-    <h1>Database editor</h1>
-    <p>Direct CRUD access to every table. No authentication is enforced—changes apply immediately.</p>
-  </div>
-
-  <form method="get" class="editor-picker">
-    <label for="table">Table</label>
-    <select id="table" name="table">
-      {% for key, cfg in tables.items() %}
-        <option value="{{ key }}" {% if key == table_key %}selected{% endif %}>{{ cfg.label }}</option>
-      {% endfor %}
-    </select>
-    <button type="submit" class="button">Load</button>
-  </form>
-
-  {% if message %}
-    <div class="callout success">{{ message }}</div>
-  {% endif %}
-  {% if error %}
-    <div class="callout danger">{{ error }}</div>
-  {% endif %}
-
-  <div class="editor-head">
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
     <div>
-      <h2>{{ tables[table_key].label }}</h2>
-      <p class="muted">Primary keys are read-only on existing rows. Composite key tables require both key fields for edits/deletes.</p>
+      <h1 class="h4 mb-1">Database editor</h1>
+      <p class="mb-0 text-muted">Direct CRUD on every table. No auth.</p>
     </div>
-    <div class="pill tight">Rows: {{ rows|length }}</div>
+    <span class="badge text-bg-danger">Careful</span>
   </div>
+</div>
 
-  <div class="row-card create-card">
-    <form method="post" class="row-form">
-      <input type="hidden" name="table" value="{{ table_key }}">
-      <input type="hidden" name="action" value="create">
-      {% for col in columns %}
-        <label>
-          <div class="label-head">
-            <span>{{ col.name }}</span>
-            {% if col.pk %}<span class="pill tight">PK</span>{% endif %}
-            {% if not col.nullable %}<span class="required">*</span>{% endif %}
-          </div>
-          {% if col.type == "bool" %}
-            <input type="hidden" name="{{ col.name }}" value="0">
-            <input type="checkbox" name="{{ col.name }}" value="1">
-          {% elif col.type == "enum" %}
-            <select name="{{ col.name }}">
-              <option value=""></option>
-              {% for val in col.enum_values %}
-                <option value="{{ val }}">{{ val }}</option>
-              {% endfor %}
-            </select>
-          {% else %}
-            <input type="text" name="{{ col.name }}" placeholder="{{ col.type }}">
-          {% endif %}
-        </label>
-      {% endfor %}
-      <div class="row-actions">
-        <button type="submit" class="button">Add row</button>
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body">
+    <form method="get" class="row g-2 align-items-end">
+      <div class="col-md-9">
+        <label for="table" class="form-label">Table</label>
+        <select id="table" name="table" class="form-select">
+          {% for key, cfg in tables.items() %}
+            <option value="{{ key }}" {% if key == table_key %}selected{% endif %}>{{ cfg.label }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn btn-primary w-100">Load</button>
       </div>
     </form>
   </div>
+</div>
 
-  {% for row in rows %}
-    <div class="row-card">
-      <form method="post" class="row-form">
+{% if message %}
+  <div class="alert alert-success">{{ message }}</div>
+{% endif %}
+{% if error %}
+  <div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <div>
+        <h2 class="h5 mb-1">{{ tables[table_key].label }}</h2>
+        <p class="mb-0 text-muted">Primary keys stay read-only on existing rows.</p>
+      </div>
+      <span class="badge text-bg-secondary">Rows: {{ rows|length }}</span>
+    </div>
+
+    <div class="border rounded p-3 mb-3 bg-light">
+      <form method="post" class="row g-3">
         <input type="hidden" name="table" value="{{ table_key }}">
-        <input type="hidden" name="action" value="update">
+        <input type="hidden" name="action" value="create">
         {% for col in columns %}
-          <label>
-            <div class="label-head">
-              <span>{{ col.name }}</span>
-              {% if col.pk %}<span class="pill tight">PK</span>{% endif %}
-              {% if not col.nullable %}<span class="required">*</span>{% endif %}
-            </div>
-            {% if col.type == "bool" %}
-              <input type="hidden" name="{{ col.name }}" value="0">
-              <input type="checkbox" name="{{ col.name }}" value="1" {% if row[col.name] %}checked{% endif %}>
-            {% elif col.type == "enum" %}
-              <select name="{{ col.name }}" {% if col.pk %}readonly{% endif %}>
-                <option value=""></option>
-                {% for val in col.enum_values %}
-                  <option value="{{ val }}" {% if row[col.name] == val %}selected{% endif %}>{{ val }}</option>
-                {% endfor %}
-              </select>
-            {% else %}
-              <input type="text" name="{{ col.name }}" value="{{ row[col.name] if row[col.name] is not none else '' }}" {% if col.pk %}readonly{% endif %}>
-            {% endif %}
-          </label>
+          <div class="col-md-4">
+            <label class="form-label w-100">
+              <div class="d-flex align-items-center gap-2">
+                <span>{{ col.name }}</span>
+                {% if col.pk %}<span class="badge text-bg-secondary">PK</span>{% endif %}
+                {% if not col.nullable %}<span class="text-danger">*</span>{% endif %}
+              </div>
+              {% if col.type == "bool" %}
+                <input type="hidden" name="{{ col.name }}" value="0">
+                <div class="form-check mt-1">
+                  <input class="form-check-input" type="checkbox" name="{{ col.name }}" value="1" id="create-{{ col.name }}">
+                  <label class="form-check-label" for="create-{{ col.name }}">True</label>
+                </div>
+              {% elif col.type == "enum" %}
+                <select class="form-select" name="{{ col.name }}">
+                  <option value=""></option>
+                  {% for val in col.enum_values %}
+                    <option value="{{ val }}">{{ val }}</option>
+                  {% endfor %}
+                </select>
+              {% else %}
+                <input type="text" class="form-control" name="{{ col.name }}" placeholder="{{ col.type }}">
+              {% endif %}
+            </label>
+          </div>
         {% endfor %}
-        <div class="row-actions">
-          <button type="submit" class="button">Save</button>
+        <div class="col-12 text-end">
+          <button type="submit" class="btn btn-primary">Add row</button>
         </div>
       </form>
-      <form method="post" class="inline-delete">
-        <input type="hidden" name="table" value="{{ table_key }}">
-        <input type="hidden" name="action" value="delete">
-        {% for col in columns if col.pk %}
-          <input type="hidden" name="{{ col.name }}" value="{{ row[col.name] }}">
-        {% endfor %}
-        <button type="submit" class="button danger">Delete</button>
-      </form>
     </div>
-  {% else %}
-    <p class="muted">No rows yet.</p>
-  {% endfor %}
+
+    {% for row in rows %}
+      <div class="border rounded p-3 mb-3">
+        <form method="post" class="row g-3">
+          <input type="hidden" name="table" value="{{ table_key }}">
+          <input type="hidden" name="action" value="update">
+          {% for col in columns %}
+            <div class="col-md-4">
+              <label class="form-label w-100">
+                <div class="d-flex align-items-center gap-2">
+                  <span>{{ col.name }}</span>
+                  {% if col.pk %}<span class="badge text-bg-secondary">PK</span>{% endif %}
+                  {% if not col.nullable %}<span class="text-danger">*</span>{% endif %}
+                </div>
+                {% if col.type == "bool" %}
+                  <input type="hidden" name="{{ col.name }}" value="0">
+                  <div class="form-check mt-1">
+                    <input class="form-check-input" type="checkbox" name="{{ col.name }}" value="1" id="row-{{ col.name }}-{{ loop.index }}" {% if row[col.name] %}checked{% endif %}>
+                    <label class="form-check-label" for="row-{{ col.name }}-{{ loop.index }}">True</label>
+                  </div>
+                {% elif col.type == "enum" %}
+                  <select class="form-select" name="{{ col.name }}" {% if col.pk %}readonly{% endif %}>
+                    <option value=""></option>
+                    {% for val in col.enum_values %}
+                      <option value="{{ val }}" {% if row[col.name] == val %}selected{% endif %}>{{ val }}</option>
+                    {% endfor %}
+                  </select>
+                {% else %}
+                  <input type="text" class="form-control" name="{{ col.name }}" value="{{ row[col.name] if row[col.name] is not none else '' }}" {% if col.pk %}readonly{% endif %}>
+                {% endif %}
+              </label>
+            </div>
+          {% endfor %}
+          <div class="col-12 d-flex justify-content-end gap-2">
+            <button type="submit" class="btn btn-outline-secondary">Save</button>
+          </div>
+        </form>
+        <form method="post" class="mt-2 text-end">
+          <input type="hidden" name="table" value="{{ table_key }}">
+          <input type="hidden" name="action" value="delete">
+          {% for col in columns if col.pk %}
+            <input type="hidden" name="{{ col.name }}" value="{{ row[col.name] }}">
+          {% endfor %}
+          <button type="submit" class="btn btn-outline-danger">Delete</button>
+        </form>
+      </div>
+    {% else %}
+      <p class="text-muted mb-0">No rows yet.</p>
+    {% endfor %}
+  </div>
 </div>
 {% endblock %}

@@ -1,69 +1,83 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="section">
-  <div class="section-header">
-    <h1>Search substances</h1>
-    <p>Look up authorised substances by CAS number or substance name/identifier. Food categories are not part of this search.</p>
+<div class="card shadow-sm border-0">
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-3">
+      <h1 class="h4 mb-0">Search substances</h1>
+      <span class="badge text-bg-secondary">CAS or name</span>
+    </div>
+
+    <form class="row gy-2 align-items-end mb-3" method="get">
+      <div class="col-md-9">
+        <label class="form-label">Query</label>
+        <div class="input-group">
+          <span class="input-group-text">?</span>
+          <input type="text" class="form-control" name="q" placeholder="67-64-1 or acetic acid" value="{{ query }}">
+        </div>
+      </div>
+      <div class="col-md-3 text-md-end">
+        <button type="submit" class="btn btn-primary w-100">Search</button>
+      </div>
+    </form>
+
+    {% if query and not substances %}
+      <div class="alert alert-warning mb-0">No matches for "{{ query }}".</div>
+    {% endif %}
+
+    {% if substances %}
+      <div class="table-responsive">
+        <table class="table align-middle">
+          <thead>
+            <tr>
+              <th>CAS number</th>
+              <th>Name / identifier</th>
+              <th>Identifiers</th>
+              <th>Limits & notes</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for substance in substances %}
+              <tr>
+                <td class="fw-semibold">{{ substance.cas_no or "—" }}</td>
+                <td class="text-wrap">{{ substance.smiles or "—" }}</td>
+                <td>
+                  <div class="pill tight">FCM {{ substance.fcm_no or "—" }}</div>
+                  <div class="pill tight">EC {{ substance.ec_ref_no or "—" }}</div>
+                </td>
+                <td>
+                  {% if substance.sm_entries %}
+                    {% for entry in substance.sm_entries %}
+                      <div class="limit-block">
+                        {% if entry.limits %}
+                          {% for limit in entry.limits %}
+                            <span class="pill tight">
+                              {{ limit.kind.value }}
+                              {% if limit.value is not none %}
+                                {{ "%.3f"|format(limit.value) }}
+                              {% elif limit.raw_expression %}
+                                {{ limit.raw_expression }}
+                              {% endif %}
+                            </span>
+                          {% endfor %}
+                        {% else %}
+                          <span class="text-muted">No SML recorded.</span>
+                        {% endif %}
+                        {% if entry.restrictions_and_specifications %}
+                          <div class="text-muted">{{ entry.restrictions_and_specifications }}</div>
+                        {% endif %}
+                      </div>
+                    {% endfor %}
+                  {% else %}
+                    <span class="text-muted">No Annex I entry stored for this substance.</span>
+                  {% endif %}
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endif %}
   </div>
-  <form class="search-form" method="get">
-    <input type="text" name="q" placeholder="Search by CAS number or substance name (e.g. 67-64-1)" value="{{ query }}">
-    <button type="submit">Search</button>
-  </form>
-
-  {% if query and not substances %}
-    <p class="muted">No matches for "{{ query }}". Try a different term.</p>
-  {% endif %}
-
-  {% if substances %}
-    <table class="data-table">
-      <thead>
-        <tr>
-          <th>CAS number</th>
-          <th>Name / identifier</th>
-          <th>Identifiers</th>
-          <th>Limits & notes</th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for substance in substances %}
-          <tr>
-            <td>{{ substance.cas_no or "—" }}</td>
-            <td>{{ substance.smiles or "—" }}</td>
-            <td>
-              <div>FCM No: {{ substance.fcm_no or "—" }}</div>
-              <div>EC Ref No: {{ substance.ec_ref_no or "—" }}</div>
-            </td>
-            <td>
-              {% if substance.sm_entries %}
-                {% for entry in substance.sm_entries %}
-                  <div class="limit-block">
-                    {% if entry.limits %}
-                      {% for limit in entry.limits %}
-                        <span class="pill tight">{{ limit.kind.value }}
-                          {% if limit.value is not none %}
-                            {{ "%.3f"|format(limit.value) }}
-                          {% elif limit.raw_expression %}
-                            {{ limit.raw_expression }}
-                          {% endif %}
-                        </span>
-                      {% endfor %}
-                    {% else %}
-                      <span class="muted">No SML recorded.</span>
-                    {% endif %}
-                    {% if entry.restrictions_and_specifications %}
-                      <div class="muted">{{ entry.restrictions_and_specifications }}</div>
-                    {% endif %}
-                  </div>
-                {% endfor %}
-              {% else %}
-                <span class="muted">No Annex I entry stored for this substance.</span>
-              {% endif %}
-            </td>
-          </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-  {% endif %}
-</section>
+</div>
 {% endblock %}

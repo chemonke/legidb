@@ -1,46 +1,53 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="section">
-  <div class="section-header">
-    <h1>API usage</h1>
-    <p>Pull JSON directly from LegiDB. Endpoints are unauthenticated and live under <code>/api</code>.</p>
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h1 class="h4 mb-0">API usage</h1>
+    <span class="badge text-bg-secondary">/api</span>
   </div>
+</div>
 
-  <table class="data-table">
-    <thead>
-      <tr>
-        <th>Method</th>
-        <th>Endpoint</th>
-        <th>Returns</th>
-      </tr>
-    </thead>
-    <tbody>
-      <tr>
-        <td>GET</td>
-        <td><code>/api/foods</code></td>
-        <td>All foods with their Annex III category and linked simulants.</td>
-      </tr>
-      <tr>
-        <td>GET</td>
-        <td><code>/api/foods/&lt;id&gt;</code></td>
-        <td>Single food record, including category metadata and simulants.</td>
-      </tr>
-      <tr>
-        <td>GET</td>
-        <td><code>/api/substances</code></td>
-        <td>Authorised substances with CAS, FCM, EC reference, and SMILES.</td>
-      </tr>
-    </tbody>
-  </table>
-</section>
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body">
+    <div class="fw-semibold text-uppercase small text-muted mb-2">Endpoints</div>
+    <div class="table-responsive">
+      <table class="table align-middle">
+        <thead>
+          <tr>
+            <th>Method</th>
+            <th>Endpoint</th>
+            <th>Returns</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td class="fw-semibold">GET</td>
+            <td><code>/api/foods</code></td>
+            <td>All foods with category and simulants.</td>
+          </tr>
+          <tr>
+            <td class="fw-semibold">GET</td>
+            <td><code>/api/foods/&lt;id&gt;</code></td>
+            <td>Single food record.</td>
+          </tr>
+          <tr>
+            <td class="fw-semibold">GET</td>
+            <td><code>/api/substances</code></td>
+            <td>Authorised substances with identifiers.</td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
 
-<section class="section">
-  <h2>Example calls</h2>
-  <p>Replace <code>localhost:5000</code> with your host/port if different.</p>
-  <pre><code>curl -s http://localhost:5000/api/substances | jq '.[0]'</code></pre>
-  <pre><code>curl -s http://localhost:5000/api/foods | jq '[.[].simulants]'</code></pre>
-  <pre><code>curl -s http://localhost:5000/api/foods/1 | jq</code></pre>
-  <p class="muted">Tip: pipe responses through <code>jq</code> for quick inspection, or fetch from your application client with the same URLs.</p>
-</section>
+<div class="card shadow-sm border-0">
+  <div class="card-body">
+    <div class="fw-semibold text-uppercase small text-muted mb-2">Examples</div>
+    <pre><code>curl -s http://localhost:5000/api/substances | jq '.[0]'</code></pre>
+    <pre><code>curl -s http://localhost:5000/api/foods | jq '[.[].simulants]'</code></pre>
+    <pre><code>curl -s http://localhost:5000/api/foods/1 | jq</code></pre>
+  </div>
+</div>
 {% endblock %}
