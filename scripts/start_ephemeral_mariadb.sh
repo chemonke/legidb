@@ -44,16 +44,17 @@ else
 fi
 SCHEMA_SQL="$REPO_ROOT/data/schema.sql"
 SAMPLE_SQL="$REPO_ROOT/data/sample_data.sql"
-# Fallback to bundled store paths when running via remote flake (no checkout).
+# Allow overrides (used by flake/env to point at store copies).
 if [[ -n "$SCHEMA_ARG" ]]; then
   SCHEMA_SQL="$SCHEMA_ARG"
-elif [[ ! -f "$SCHEMA_SQL" ]]; then
-  SCHEMA_SQL="@schema_sql@"
+elif [[ -n "${LEGIDB_SCHEMA_SQL:-}" ]]; then
+  SCHEMA_SQL="$LEGIDB_SCHEMA_SQL"
 fi
+
 if [[ -n "$SAMPLE_ARG" ]]; then
   SAMPLE_SQL="$SAMPLE_ARG"
-elif [[ ! -f "$SAMPLE_SQL" ]]; then
-  SAMPLE_SQL="@sample_sql@"
+elif [[ -n "${LEGIDB_SAMPLE_SQL:-}" ]]; then
+  SAMPLE_SQL="$LEGIDB_SAMPLE_SQL"
 fi
 
 mkdir -p "$DATA_DIR"

@@ -23,7 +23,9 @@
           runtimeInputs = [ mariadb pkgs.coreutils ];
           text = ''
             # Substitute store paths for schema/sample when running remotely.
-            exec "${./scripts/start_ephemeral_mariadb.sh}" --schema-sql "${./data/schema.sql}" --sample-sql "${./data/sample_data.sql}" "$@"
+            LEGIDB_SCHEMA_SQL="${./data/schema.sql}" \
+            LEGIDB_SAMPLE_SQL="${./data/sample_data.sql}" \
+            exec "${./scripts/start_ephemeral_mariadb.sh}" "$@"
           '';
         };
 
