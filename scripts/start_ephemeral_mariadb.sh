@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/bash
 # Start an isolated MariaDB instance under /tmp so nothing is installed system-wide.
 
 set -euo pipefail

@@ -60,6 +60,7 @@
               paths = [
                 pythonEnv
                 mariadb
+                pkgs.nix
                 pkgs.coreutils
                 pkgs.git
                 pkgs.bashInteractive
@@ -72,17 +73,15 @@
               pathsToLink = [ "/bin" "/etc" "/lib" "/share" ];
             })
           ];
-          extraCommands = ''
-            mkdir -p $out/usr/bin
-            # Provide /usr/bin/env and /usr/bin/bash for scripts with common shebangs.
-            ln -s /bin/env $out/usr/bin/env
-            ln -s /bin/bash $out/usr/bin/bash
-          '';
           config = {
+            User = "1000:1000";
             Env = [
               "DATABASE_URL=mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb"
               "PATH=/bin:/usr/bin:/usr/local/bin"
               "LC_ALL=C.UTF-8"
+              "HOME=/workspace"
+              "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "NIX_CONFIG=experimental-features = nix-command flakes\nbuild-users-group ="
             ];
             WorkingDir = "/workspace";
             Volumes = { "/workspace" = {}; };
