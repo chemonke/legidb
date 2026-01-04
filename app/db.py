@@ -129,20 +129,10 @@ def close_connection(_=None) -> None:
 def ensure_bootstrapped() -> None:
     engine = get_engine()
     if engine.url.get_backend_name().startswith("sqlite"):
-        db_path = Path(engine.url.database or "legidb.sqlite")
-        db_path.parent.mkdir(parents=True, exist_ok=True)
-        first_time = not db_path.exists()
-        conn = sqlite3.connect(db_path)
-        conn.row_factory = sqlite3.Row
-        conn.executescript(SQLITE_SCHEMA)
-        seed_needed = first_time
-        if not seed_needed:
-            existing = conn.execute("SELECT COUNT(*) as cnt FROM food_categories").fetchone()
-            seed_needed = existing["cnt"] == 0 if existing else True
-        if seed_needed:
-            seed_from_sqlite(conn, Path(current_app.root_path).parent / "data" / "sample_data.sql")
-        conn.commit()
-        conn.close()
+        raise RuntimeError(
+            "SQLite is no longer supported. Please set DATABASE_URL to a MariaDB DSN "
+            "(e.g. mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb)."
+        )
     ensure_plan_favorites_table()
 
 
