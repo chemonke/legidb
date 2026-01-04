@@ -72,7 +72,27 @@ INSERT INTO sm_entry_group_restrictions (sm_id, group_restriction_id) VALUES
 (6, 1),
 (8, 1);
 
-INSERT INTO sm_conditions (worst_case_time, testing_time, worst_case_temp, testing_temp) VALUES
-(10, 10, 40, 40),
-(2, 2, 70, 70),
-(0, 0, 100, 100);
+-- Time-based conditions (minutes).
+INSERT INTO sm_time_conditions (worst_case_time_minutes, testing_time_minutes) VALUES
+(5, 5),
+(30, 30),
+(60, 60),
+(120, 120),
+(360, 360),
+(1440, 1440),
+(4320, 4320),
+(43200, 14400);
+
+-- Temperature-based conditions (Celsius).
+-- The last row represents any contact temperature above 175C; testing_temp_celsius should be adjusted to the actual interface temperature.
+INSERT INTO sm_temp_conditions (worst_case_temp_celsius, testing_temp_celsius, note) VALUES
+(5, 5, NULL),
+(20, 20, NULL),
+(40, 40, NULL),
+(70, 70, NULL),
+(100, 100, 'Or reflux temperature'),
+(121, 121, 'Adjust to interface temperature'),
+(130, 130, 'Adjust to interface temperature'),
+(150, 150, 'Adjust to interface temperature'),
+(175, 175, 'Adjust to interface temperature'),
+(176, 176, 'Above 175C: adjust to interface temperature');

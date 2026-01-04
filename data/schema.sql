@@ -66,10 +66,15 @@ CREATE TABLE IF NOT EXISTS sm_entry_group_restrictions (
   FOREIGN KEY (group_restriction_id) REFERENCES group_restrictions(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS sm_conditions (
+CREATE TABLE IF NOT EXISTS sm_time_conditions (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  worst_case_time INT NOT NULL,
-  testing_time INT NOT NULL,
-  worst_case_temp INT NOT NULL,
-  testing_temp INT NOT NULL
+  worst_case_time_minutes INT NOT NULL,
+  testing_time_minutes INT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sm_temp_conditions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  worst_case_temp_celsius INT NOT NULL,
+  testing_temp_celsius INT NOT NULL,
+  note VARCHAR(255)
 );
