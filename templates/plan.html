@@ -73,25 +73,9 @@
       </div>
       <span class="badge text-bg-secondary">Drives test time/temperature selection</span>
     </div>
-    <div class="row g-3">
-      <div class="col-md-6">
-        <label class="form-label">Worst-case contact time (minutes)</label>
-        <div class="input-group">
-          <input type="number" min="0" class="form-control" id="worst-time" placeholder="e.g. 120">
-          <select class="form-select" id="worst-time-unit">
-            <option value="minutes" selected>Minutes</option>
-            <option value="hours">Hours</option>
-            <option value="days">Days</option>
-          </select>
-        </div>
-        <div class="form-text">We’ll match the nearest rule that covers this time (auto-converted to minutes).</div>
-      </div>
-      <div class="col-md-6">
-        <label class="form-label">Worst-case contact temperature (°C)</label>
-        <input type="number" min="0" class="form-control" id="worst-temp" placeholder="e.g. 100">
-        <div class="form-text">We’ll pull the corresponding testing temperature from Annex defaults.</div>
-      </div>
-    </div>
+    <div id="condition-rows" class="d-flex flex-column gap-3"></div>
+    <button class="btn btn-link px-0 mt-2" type="button" id="add-condition">+ Add another condition</button>
+    <div class="form-text mt-1">Example: add retort exposure and a separate ambient storage step.</div>
   </div>
 </div>
 
@@ -142,7 +126,40 @@
       <div class="fw-semibold">Combine selections</div>
       <p class="mb-0 text-muted">Pulls simulants, FRF hints, SMLs, group limits, and time/temperature tables from the local dataset.</p>
     </div>
-    <button class="btn btn-primary" id="generate-btn">Generate analysis plan</button>
+    <div class="d-flex gap-2 flex-wrap">
+      <button class="btn btn-outline-secondary" id="download-json" disabled>Download JSON</button>
+      <button class="btn btn-primary" id="generate-btn">Generate analysis plan</button>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <div class="fw-semibold text-uppercase small text-muted">Favorites</div>
+        <div class="fw-semibold">Save / load plans</div>
+      </div>
+      <span class="badge text-bg-secondary">Stores the full JSON result</span>
+    </div>
+    <div class="row g-2">
+      <div class="col-lg-6">
+        <label class="form-label">Favorite name</label>
+        <div class="input-group">
+          <input type="text" class="form-control" id="favorite-name" placeholder="e.g. Retort + ambient hold">
+          <button class="btn btn-outline-primary" id="save-favorite" disabled>Save</button>
+        </div>
+        <div class="form-text">Requires a generated plan to save.</div>
+      </div>
+      <div class="col-lg-6">
+        <label class="form-label">Load favorite</label>
+        <div class="input-group">
+          <select class="form-select" id="favorite-select"></select>
+          <button class="btn btn-outline-secondary" id="load-favorite">Load</button>
+        </div>
+        <div class="form-text" id="favorite-status"></div>
+      </div>
+    </div>
   </div>
 </div>
 
@@ -172,11 +189,17 @@
     const substanceTags = document.getElementById('substance-tags');
     const foodSuggestions = document.getElementById('food-suggestions');
     const substanceSuggestions = document.getElementById('substance-suggestions');
-    const worstTimeInput = document.getElementById('worst-time');
-    const worstTimeUnit = document.getElementById('worst-time-unit');
-    const worstTempInput = document.getElementById('worst-temp');
+    const conditionRows = document.getElementById('condition-rows');
+    const addConditionBtn = document.getElementById('add-condition');
+    const downloadBtn = document.getElementById('download-json');
+    const favoriteName = document.getElementById('favorite-name');
+    const saveFavoriteBtn = document.getElementById('save-favorite');
+    const favoriteSelect = document.getElementById('favorite-select');
+    const loadFavoriteBtn = document.getElementById('load-favorite');
+    const favoriteStatus = document.getElementById('favorite-status');
     const planOutput = document.getElementById('plan-output');
     const generateBtn = document.getElementById('generate-btn');
+    let lastPlanData = null;
 
     function debounce(fn, delay = 200) {
       let timer;
@@ -191,6 +214,117 @@
       if (unit === 'hours') return value * 60;
       if (unit === 'days') return value * 1440;
       return value;
+    }
+
+    function toggleRemoveButtons() {
+      const buttons = conditionRows.querySelectorAll('.remove-condition');
+      const disable = buttons.length <= 1;
+      buttons.forEach(btn => btn.disabled = disable);
+    }
+
+    function createConditionRow(initial = {}) {
+      const row = document.createElement('div');
+      row.className = 'plan-block';
+      const timeVal = initial.time ?? '';
+      const tempVal = initial.temp ?? '';
+      row.innerHTML = `
+        <div class="row g-2 align-items-end">
+          <div class="col-md-5">
+            <label class="form-label">Worst-case contact time</label>
+            <div class="input-group">
+              <input type="number" min="0" class="form-control condition-time" placeholder="e.g. 120" ${timeVal !== '' ? `value="${timeVal}"` : ""}>
+              <select class="form-select condition-time-unit">
+                <option value="minutes">Minutes</option>
+                <option value="hours">Hours</option>
+                <option value="days">Days</option>
+              </select>
+            </div>
+          </div>
+          <div class="col-md-5">
+            <label class="form-label">Worst-case contact temperature (°C)</label>
+            <input type="number" min="0" class="form-control condition-temp" placeholder="e.g. 100" ${tempVal !== '' ? `value="${tempVal}"` : ""}>
+          </div>
+          <div class="col-md-2 text-md-end">
+            <button class="btn btn-outline-secondary remove-condition w-100" type="button">Remove</button>
+          </div>
+        </div>
+      `;
+      row.querySelector('.condition-time-unit').value = initial.unit || 'minutes';
+      row.querySelector('.remove-condition').addEventListener('click', () => {
+        if (conditionRows.children.length <= 1) return;
+        row.remove();
+        toggleRemoveButtons();
+      });
+      conditionRows.appendChild(row);
+      toggleRemoveButtons();
+    }
+
+    function collectConditions() {
+      const rows = Array.from(conditionRows.querySelectorAll('.plan-block'));
+      return rows.map(row => {
+        const timeInput = row.querySelector('.condition-time');
+        const unitInput = row.querySelector('.condition-time-unit');
+        const tempInput = row.querySelector('.condition-temp');
+        const timeVal = timeInput.value ? toMinutes(parseInt(timeInput.value, 10), unitInput.value) : null;
+        const tempVal = tempInput.value ? parseInt(tempInput.value, 10) : null;
+        return {
+          worst_case_time_minutes: timeVal,
+          input_time_raw: timeInput.value ? parseInt(timeInput.value, 10) : null,
+          input_time_unit: timeInput.value ? unitInput.value : null,
+          worst_case_temp_celsius: tempVal,
+        };
+      }).filter(cond => cond.worst_case_time_minutes !== null || cond.worst_case_temp_celsius !== null);
+    }
+
+    function formatTime(minutes, unit = 'minutes') {
+      if (minutes === null || minutes === undefined) return null;
+      if (unit === 'hours') {
+        const hrs = minutes / 60;
+        return `${Number.isInteger(hrs) ? hrs : hrs.toFixed(2)} hours`;
+      }
+      if (unit === 'days') {
+        const days = minutes / 1440;
+        return `${Number.isInteger(days) ? days : days.toFixed(2)} days`;
+      }
+      return `${minutes} min`;
+    }
+
+    function hydrateSelectionsFromPlan(plan) {
+      foods.clear();
+      substances.clear();
+      if (Array.isArray(plan.foods)) {
+        plan.foods.forEach(f => {
+          if (f.id) foods.set(f.id, `${f.name} (Annex III ${f.ref_no})`);
+        });
+      }
+      if (Array.isArray(plan.substances)) {
+        plan.substances.forEach(s => {
+          if (s.id) substances.set(s.id, `CAS ${s.cas_no} · FCM ${s.fcm_no} · EC ${s.ec_ref_no}`);
+        });
+      }
+      renderTags(foodTags, foods, document.getElementById('food-count'));
+      renderTags(substanceTags, substances, document.getElementById('substance-count'));
+    }
+
+    function hydrateConditionsFromPlan(plan) {
+      conditionRows.innerHTML = '';
+      const conds = Array.isArray(plan.conditions) && plan.conditions.length
+        ? plan.conditions
+        : [{
+            worst_case_time_minutes: plan.worst_case_time_minutes ?? null,
+            worst_case_temp_celsius: plan.worst_case_temp_celsius ?? null,
+            input_time_raw: plan.worst_case_time_minutes ?? null,
+            input_time_unit: 'minutes',
+          }];
+      conds.forEach(cond => {
+        const initial = {
+          time: cond.input_time_raw ?? cond.worst_case_time_minutes ?? '',
+          unit: cond.input_time_unit || 'minutes',
+          temp: cond.worst_case_temp_celsius ?? '',
+        };
+        createConditionRow(initial);
+      });
+      if (!conds.length) createConditionRow();
     }
 
     function renderTags(container, dataMap, countEl) {
@@ -217,7 +351,7 @@
         }
         const res = await fetch(`/api/suggest/${kind}?q=${encodeURIComponent(q)}`);
         if (!res.ok) return;
-        const items = await res.json();
+        const items = (await res.json()).filter(item => !dataMap.has(item.id));
         suggestionBox.innerHTML = '';
         if (!items.length) {
           suggestionBox.style.display = 'none';
@@ -248,12 +382,100 @@
     attachAutocomplete(foodInput, foodSuggestions, 'foods', foods, document.getElementById('food-count'));
     attachAutocomplete(substanceInput, substanceSuggestions, 'substances', substances, document.getElementById('substance-count'));
 
+    function updateDownloadState() {
+      const hasPlan = !!lastPlanData;
+      downloadBtn.disabled = !hasPlan;
+      saveFavoriteBtn.disabled = !hasPlan;
+    }
+
+    downloadBtn.addEventListener('click', () => {
+      if (!lastPlanData) return;
+      const blob = new Blob([JSON.stringify(lastPlanData, null, 2)], { type: 'application/json' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'plan.json';
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 500);
+    });
+
+    async function refreshFavorites(selectedId) {
+      const res = await fetch('/api/favorites');
+      if (!res.ok) return;
+      const items = await res.json();
+      favoriteSelect.innerHTML = '';
+      if (!items.length) {
+        favoriteSelect.innerHTML = '<option value="">No favorites saved</option>';
+        loadFavoriteBtn.disabled = true;
+        return;
+      }
+      items.forEach(f => {
+        const opt = document.createElement('option');
+        opt.value = f.id;
+        opt.textContent = `${f.name}`;
+        favoriteSelect.appendChild(opt);
+      });
+      if (selectedId) {
+        favoriteSelect.value = String(selectedId);
+      }
+      loadFavoriteBtn.disabled = false;
+    }
+
+    saveFavoriteBtn.addEventListener('click', async () => {
+      if (!lastPlanData) return;
+      const name = favoriteName.value.trim();
+      if (!name) {
+        favoriteStatus.textContent = 'Name is required to save.';
+        return;
+      }
+      favoriteStatus.textContent = 'Saving...';
+      const res = await fetch('/api/favorites', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({ name, plan: lastPlanData }),
+      });
+      if (!res.ok) {
+        favoriteStatus.textContent = 'Could not save favorite.';
+        return;
+      }
+      const list = await res.json();
+      favoriteStatus.textContent = 'Saved!';
+      favoriteName.value = '';
+      await refreshFavorites(list[0]?.id);
+    });
+
+    loadFavoriteBtn.addEventListener('click', async () => {
+      const id = favoriteSelect.value;
+      if (!id) return;
+      favoriteStatus.textContent = 'Loading...';
+      const res = await fetch(`/api/favorites/${id}`);
+      if (!res.ok) {
+        favoriteStatus.textContent = 'Could not load favorite.';
+        return;
+      }
+      const payload = await res.json();
+      favoriteStatus.textContent = `Loaded "${payload.name}".`;
+      hydrateSelectionsFromPlan(payload.plan || {});
+      hydrateConditionsFromPlan(payload.plan || {});
+      renderPlan(payload.plan || {});
+    });
+
+    // Initialize with one condition row by default.
+    createConditionRow();
+    addConditionBtn.addEventListener('click', () => createConditionRow());
+    refreshFavorites();
+
     function renderPlan(data) {
       if ((!data.foods || !data.foods.length) && (!data.substances || !data.substances.length)) {
         planOutput.innerHTML = '<div class="alert alert-warning">Add at least one food or substance to build a plan.</div>';
+        lastPlanData = null;
+        updateDownloadState();
         return;
       }
       const frag = document.createDocumentFragment();
+      const groupBuckets = new Map();
 
       if (data.foods?.length) {
         const foodsCard = document.createElement('div');
@@ -299,6 +521,20 @@
           const block = document.createElement('div');
           block.className = 'plan-block';
           const groupLimits = (sub.group_limits || []).map(gl => `<div class="pill tight">Group SML: ${gl.group_sml} ${gl.unit}</div>${gl.specification ? `<div class="text-muted small">${gl.specification}</div>` : ""}`).join("");
+          (sub.group_limits || []).forEach(gl => {
+            if (!gl.group_restriction_id) return;
+            const existing = groupBuckets.get(gl.group_restriction_id);
+            if (!existing) {
+              groupBuckets.set(gl.group_restriction_id, {
+                group_sml: gl.group_sml,
+                unit: gl.unit,
+                specification: gl.specification,
+                substances: [sub],
+              });
+            } else if (!existing.substances.some(s => s.id === sub.id)) {
+              existing.substances.push(sub);
+            }
+          });
           block.innerHTML = `
             <div class="d-flex justify-content-between align-items-start">
               <div>
@@ -321,33 +557,95 @@
         frag.appendChild(subCard);
       }
 
-      if (data.time_conditions?.length || data.temp_conditions?.length) {
+      if (groupBuckets.size) {
+        const groupCard = document.createElement('div');
+        groupCard.className = 'card shadow-sm border-0 mb-3';
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        body.innerHTML = '<div class="fw-semibold text-uppercase small text-muted mb-2">Group limits</div>';
+        groupBuckets.forEach(group => {
+          const block = document.createElement('div');
+          block.className = 'plan-block';
+          block.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">Group SML: ${group.group_sml} ${group.unit}</div>
+                ${group.specification ? `<div class="text-muted small">${group.specification}</div>` : ""}
+              </div>
+              <div class="text-end text-muted small">${group.substances.length} linked substance${group.substances.length === 1 ? "" : "s"}</div>
+            </div>
+            <div class="mt-2 d-flex flex-wrap gap-2">
+              ${group.substances.map(s => `<span class="pill tight">CAS ${s.cas_no}</span>`).join("")}
+            </div>
+          `;
+          body.appendChild(block);
+        });
+        groupCard.appendChild(body);
+        frag.appendChild(groupCard);
+      }
+
+      if (data.conditions?.length) {
         const condCard = document.createElement('div');
         condCard.className = 'card shadow-sm border-0 mb-3';
-        condCard.innerHTML = `
-          <div class="card-body">
-            <div class="fw-semibold text-uppercase small text-muted mb-2">Test conditions</div>
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        body.innerHTML = '<div class="fw-semibold text-uppercase small text-muted mb-2">Test conditions</div>';
+
+        data.conditions.forEach((cond, idx) => {
+          const timeInputLabel = (cond.input_time_raw !== null && cond.input_time_raw !== undefined)
+            ? `${cond.input_time_raw} ${cond.input_time_unit || 'minutes'}`
+            : (cond.worst_case_time_minutes !== null && cond.worst_case_time_minutes !== undefined)
+              ? `${cond.worst_case_time_minutes} min`
+              : null;
+
+          const testTimeLabel = cond.selected_time_condition
+            ? formatTime(cond.selected_time_condition.testing_time_minutes, cond.input_time_unit || 'minutes')
+            : null;
+
+          const timeHtml = cond.selected_time_condition
+            ? `<div class="pill tight bg-primary-subtle">Test ${testTimeLabel}</div>
+               <div class="text-muted small">Worst-case input: ${timeInputLabel}</div>`
+            : (cond.worst_case_time_minutes !== null && cond.worst_case_time_minutes !== undefined)
+              ? `<div class="text-muted small">No rule matched ${timeInputLabel}.</div>`
+              : '<div class="text-muted small">No time provided.</div>';
+
+          const tempHtml = cond.selected_temp_condition
+            ? `<div class="pill tight bg-primary-subtle">Test ${cond.selected_temp_condition.testing_temp_celsius}°C</div>
+               <div class="text-muted small">Worst-case input: ${cond.worst_case_temp_celsius}°C</div>
+               ${cond.selected_temp_condition.note ? `<div class="text-muted small">${cond.selected_temp_condition.note}</div>` : ""}`
+            : (cond.worst_case_temp_celsius !== null && cond.worst_case_temp_celsius !== undefined)
+              ? `<div class="text-muted small">No rule matched ${cond.worst_case_temp_celsius}°C.</div>`
+              : '<div class="text-muted small">No temperature provided.</div>';
+
+          const block = document.createElement('div');
+          block.className = 'plan-block mb-2';
+          block.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start mb-2">
+              <div class="fw-semibold">Condition ${idx + 1}</div>
+              <div class="pill tight">Time &amp; temperature</div>
+            </div>
             <div class="row g-3">
               <div class="col-md-6">
                 <div class="fw-semibold">Contact time</div>
-                <div class="text-muted small mb-2">Worst-case vs testing window</div>
-            ${data.time_conditions.map(t => `<div class="pill tight d-inline-block mb-1">${t.worst_case_time_minutes} min → test ${t.testing_time_minutes} min</div>`).join("")}
-                ${data.selected_time_condition ? `<div class="mt-2"><span class="pill tight bg-primary-subtle">Input ${data.worst_case_time_minutes} min → test ${data.selected_time_condition.testing_time_minutes} min</span></div>` : ""}
+                ${timeHtml}
               </div>
               <div class="col-md-6">
                 <div class="fw-semibold">Contact temperature</div>
-                <div class="text-muted small mb-2">Adjust to real interface when above 121°C</div>
-            ${data.temp_conditions.map(t => `<div class="pill tight d-inline-block mb-1">${t.worst_case_temp_celsius}°C → test ${t.testing_temp_celsius}°C${t.note ? ` (${t.note})` : ""}</div>`).join("")}
-                ${data.selected_temp_condition ? `<div class="mt-2"><span class="pill tight bg-primary-subtle">Input ${data.worst_case_temp_celsius}°C → test ${data.selected_temp_condition.testing_temp_celsius}°C</span></div>` : ""}
+                ${tempHtml}
               </div>
             </div>
-          </div>
-        `;
+          `;
+          body.appendChild(block);
+        });
+
+        condCard.appendChild(body);
         frag.appendChild(condCard);
       }
 
       planOutput.innerHTML = '';
       planOutput.appendChild(frag);
+      lastPlanData = data;
+      updateDownloadState();
     }
 
     generateBtn.addEventListener('click', async () => {
@@ -358,12 +656,13 @@
         body: JSON.stringify({
           food_ids: Array.from(foods.keys()),
           substance_ids: Array.from(substances.keys()),
-          worst_case_time_minutes: worstTimeInput.value ? toMinutes(parseInt(worstTimeInput.value, 10), worstTimeUnit.value) : null,
-          worst_case_temp_celsius: worstTempInput.value ? parseInt(worstTempInput.value, 10) : null,
+          conditions: collectConditions(),
         }),
       });
       if (!res.ok) {
         planOutput.innerHTML = '<div class="alert alert-danger">Could not build plan.</div>';
+        lastPlanData = null;
+        updateDownloadState();
         return;
       }
       const data = await res.json();

@@ -85,6 +85,13 @@ CREATE TABLE IF NOT EXISTS sm_temp_conditions (
   testing_temp_celsius INTEGER NOT NULL,
   note TEXT
 );
+
+CREATE TABLE IF NOT EXISTS plan_favorites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 """
 
 _engine: Optional[Engine] = None
@@ -136,6 +143,7 @@ def ensure_bootstrapped() -> None:
             seed_from_sqlite(conn, Path(current_app.root_path).parent / "data" / "sample_data.sql")
         conn.commit()
         conn.close()
+    ensure_plan_favorites_table()
 
 
 def seed_from_sqlite(conn: sqlite3.Connection, path: Path) -> None:
@@ -180,3 +188,24 @@ def get_columns(table: str) -> List[Dict[str, Any]]:
             }
         )
     return cols
+
+
+def ensure_plan_favorites_table() -> None:
+    engine = get_engine()
+    is_sqlite = engine.url.get_backend_name().startswith("sqlite")
+    text_type = "TEXT" if is_sqlite else "JSON"
+    create_sql = """
+    CREATE TABLE IF NOT EXISTS plan_favorites (
+      id {id_col},
+      name {text_type_name} NOT NULL,
+      payload {text_type_payload} NOT NULL,
+      created_at {timestamp_col} DEFAULT CURRENT_TIMESTAMP
+    )
+    """.format(
+        id_col="INTEGER PRIMARY KEY AUTOINCREMENT" if is_sqlite else "INT AUTO_INCREMENT PRIMARY KEY",
+        text_type_name="TEXT",
+        text_type_payload=text_type,
+        timestamp_col="TIMESTAMP" if is_sqlite else "DATETIME",
+    )
+    with engine.begin() as conn:
+        conn.execute(text(create_sql))

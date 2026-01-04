@@ -1,8 +1,9 @@
+import json
 from typing import Any, Dict, List
 
 from flask import Blueprint, jsonify, request
 
-from .db import query
+from .db import execute, query
 
 bp = Blueprint("api", __name__)
 
@@ -144,6 +145,7 @@ def generate_plan():
     substance_ids = payload.get("substance_ids") or []
     worst_case_time_input = payload.get("worst_case_time_minutes")
     worst_case_temp_input = payload.get("worst_case_temp_celsius")
+    condition_inputs = payload.get("conditions")
 
     def coerce_int(val):
         try:
@@ -208,7 +210,7 @@ def generate_plan():
             if row["sm_entry_id"]:
                 group_limits = query(
                     """
-                    SELECT gr.group_sml, gr.unit, gr.specification
+                    SELECT gr.id AS group_restriction_id, gr.group_sml, gr.unit, gr.specification
                     FROM group_restrictions gr
                     JOIN sm_entry_group_restrictions sgr ON sgr.group_restriction_id = gr.id
                     WHERE sgr.sm_id = :sm_id
@@ -241,8 +243,36 @@ def generate_plan():
                 return row
         return rows[-1]
 
-    wc_time_val = coerce_int(worst_case_time_input)
-    wc_temp_val = coerce_int(worst_case_temp_input)
+    # Support both the legacy single time/temp payload and the new multi-row payload.
+    if isinstance(condition_inputs, list):
+        raw_conditions = condition_inputs
+    else:
+        raw_conditions = [
+            {
+                "worst_case_time_minutes": worst_case_time_input,
+                "worst_case_temp_celsius": worst_case_temp_input,
+            }
+        ]
+
+    condition_results = []
+    for cond in raw_conditions:
+        wc_time_val = coerce_int(cond.get("worst_case_time_minutes"))
+        wc_temp_val = coerce_int(cond.get("worst_case_temp_celsius"))
+        input_time_raw = coerce_int(cond.get("input_time_raw"))
+        input_time_unit = cond.get("input_time_unit") or "minutes"
+        condition_results.append(
+            {
+                "worst_case_time_minutes": wc_time_val,
+                "worst_case_temp_celsius": wc_temp_val,
+                "input_time_raw": input_time_raw if input_time_raw is not None else wc_time_val,
+                "input_time_unit": input_time_unit or "minutes",
+                "selected_time_condition": pick_condition(wc_time_val, time_conditions, "worst_case_time_minutes"),
+                "selected_temp_condition": pick_condition(wc_temp_val, temp_conditions, "worst_case_temp_celsius"),
+            }
+        )
+
+    # Keep legacy keys for backward compatibility (first row only).
+    first_cond = condition_results[0] if condition_results else {"worst_case_time_minutes": None, "worst_case_temp_celsius": None, "selected_time_condition": None, "selected_temp_condition": None}
 
     return jsonify(
         {
@@ -250,9 +280,50 @@ def generate_plan():
             "substances": substances_details,
             "time_conditions": time_conditions,
             "temp_conditions": temp_conditions,
-            "selected_time_condition": pick_condition(wc_time_val, time_conditions, "worst_case_time_minutes"),
-            "selected_temp_condition": pick_condition(wc_temp_val, temp_conditions, "worst_case_temp_celsius"),
-            "worst_case_time_minutes": wc_time_val,
-            "worst_case_temp_celsius": wc_temp_val,
+            "conditions": condition_results,
+            "selected_time_condition": first_cond["selected_time_condition"],
+            "selected_temp_condition": first_cond["selected_temp_condition"],
+            "worst_case_time_minutes": first_cond["worst_case_time_minutes"],
+            "worst_case_temp_celsius": first_cond["worst_case_temp_celsius"],
         }
     )
+
+
+@bp.route("/favorites", methods=["GET"])
+def list_favorites():
+    rows = query("SELECT id, name, created_at FROM plan_favorites ORDER BY created_at DESC")
+    return jsonify(rows)
+
+
+@bp.route("/favorites/<int:fav_id>", methods=["GET"])
+def get_favorite(fav_id: int):
+    rows = query(
+        "SELECT id, name, payload, created_at FROM plan_favorites WHERE id = :id",
+        {"id": fav_id},
+    )
+    if not rows:
+        return jsonify({"error": "not found"}), 404
+    row = rows[0]
+    try:
+        payload = json.loads(row["payload"])
+    except Exception:
+        payload = None
+    return jsonify({"id": row["id"], "name": row["name"], "created_at": row["created_at"], "plan": payload})
+
+
+@bp.route("/favorites", methods=["POST"])
+def create_favorite():
+    payload = request.get_json(silent=True) or {}
+    name = (payload.get("name") or "").strip()
+    plan = payload.get("plan")
+    if not name:
+        return jsonify({"error": "name is required"}), 400
+    if plan is None:
+        return jsonify({"error": "plan payload is required"}), 400
+    execute(
+        "INSERT INTO plan_favorites (name, payload) VALUES (:name, :payload)",
+        {"name": name, "payload": json.dumps(plan)},
+    )
+    # Return updated list for convenience.
+    rows = query("SELECT id, name, created_at FROM plan_favorites ORDER BY created_at DESC")
+    return jsonify(rows), 201

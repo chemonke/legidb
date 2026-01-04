@@ -4,7 +4,7 @@ from pathlib import Path
 from flask import Flask
 
 from . import admin, api, pages
-from .db import ensure_bootstrapped, init_app
+from .db import ensure_bootstrapped, init_app, ensure_plan_favorites_table
 
 
 def create_app() -> Flask:
@@ -23,6 +23,7 @@ def create_app() -> Flask:
     init_app(app)
     with app.app_context():
         ensure_bootstrapped()
+        ensure_plan_favorites_table()
 
     app.register_blueprint(pages.bp)
     app.register_blueprint(api.bp, url_prefix="/api")

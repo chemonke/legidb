@@ -78,3 +78,10 @@ CREATE TABLE IF NOT EXISTS sm_temp_conditions (
   testing_temp_celsius INT NOT NULL,
   note VARCHAR(255)
 );
+
+CREATE TABLE IF NOT EXISTS plan_favorites (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  payload JSON NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
+);

@@ -1,1 +1,2 @@
-Test
+Motivation:
+I have this delusion that makes me think following laws should be comprehensible and easy to follow (weird, I know). Unfortunately legislators and authors of legal documents appear to disagree. 
