@@ -1,50 +1,48 @@
 {% extends "base.html" %}
 
 {% block content %}
-<section class="hero">
-  <div>
-    <h1>EU 10/2011 plastics FCM database</h1>
-    <p>
-      This app wraps the Annex I and Annex III structures from Commission Regulation (EU) No 10/2011.
-      Use it to explore authorised substances, food categories, simulants, and their migration limits.
-    </p>
-    <div class="actions">
-      <a class="button" href="{{ url_for('pages.search') }}">Search the data</a>
-      <a class="button secondary" href="{{ url_for('pages.charts') }}">See quick stats</a>
+<div class="card shadow-sm border-0 mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
+      <div>
+        <div class="text-muted text-uppercase small fw-semibold">LegiDB</div>
+        <h1 class="h3 mb-2">EU 10/2011 quick reference</h1>
+        <p class="mb-0 text-muted">Browse Annex data, grab numbers, move on.</p>
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        <a class="btn btn-primary" href="{{ url_for('pages.plan') }}">Generate analysis plan</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('pages.search') }}">Search the data</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('pages.charts') }}">Quick stats</a>
+        <a class="btn btn-outline-secondary" href="{{ url_for('pages.api_docs') }}">Use the API</a>
+      </div>
     </div>
   </div>
-  <div class="hero-card">
-    <h3>What is inside?</h3>
-    <ul>
-      <li>Food categories and their reference numbers (Annex III).</li>
-      <li>Simulants linked to food categories.</li>
-      <li>Authorised substances with SML / SML(T) context.</li>
-      <li>REST API endpoints for programmatic access.</li>
-    </ul>
-  </div>
-</section>
+</div>
 
-<section class="grid">
-  <article>
-    <h3>Purpose</h3>
-    <p>
-      Aligns daily compliance checks with the structure of EU 10/2011: quickly look up
-      categories, simulants, and migration constraints when assessing materials.
-    </p>
-  </article>
-  <article>
-    <h3>Workflow</h3>
-    <p>
-      1) Load data into MariaDB; 2) Search by CAS number or substance name; 3) Pull JSON from the API;
-      4) Visualise coverage through the graphics tab.
-    </p>
-  </article>
-  <article>
-    <h3>Data provenance</h3>
-    <p>
-      Tables mirror Annex I (Table 1, 2) and Annex III structures and preserve raw expressions
-      such as ND and unit basis. Seed data can be extended as your regulatory library grows.
-    </p>
-  </article>
-</section>
+<div class="row g-3">
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fw-semibold text-muted text-uppercase small">Overview</div>
+        <p class="mb-0">Annex I &amp; III tables with food categories, simulants, and substance limits.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fw-semibold text-muted text-uppercase small">Workflow</div>
+        <p class="mb-0">Load the DB, search by CAS or name, pull JSON, glance at coverage charts.</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="card h-100 border-0 shadow-sm">
+      <div class="card-body">
+        <div class="fw-semibold text-muted text-uppercase small">Data</div>
+        <p class="mb-0">Raw expressions kept as written so you can read restrictions your way.</p>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}

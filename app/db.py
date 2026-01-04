@@ -1,0 +1,201 @@
+import os
+import sqlite3
+from pathlib import Path
+from typing import Any, Dict, Iterable, List, Optional
+
+from flask import current_app, g
+from sqlalchemy import create_engine, inspect, text
+from sqlalchemy.engine import Engine
+
+SQLITE_SCHEMA = """
+PRAGMA foreign_keys = ON;
+
+CREATE TABLE IF NOT EXISTS food_categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  ref_no TEXT NOT NULL UNIQUE,
+  description TEXT NOT NULL,
+  acidic INTEGER NOT NULL,
+  frf INTEGER
+);
+
+CREATE TABLE IF NOT EXISTS foods (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  food_category_id INTEGER NOT NULL,
+  FOREIGN KEY (food_category_id) REFERENCES food_categories(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS simulants (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  abbreviation TEXT NOT NULL UNIQUE
+);
+
+CREATE TABLE IF NOT EXISTS food_category_simulants (
+  food_category_id INTEGER NOT NULL,
+  simulant_id INTEGER NOT NULL,
+  PRIMARY KEY (food_category_id, simulant_id),
+  FOREIGN KEY (food_category_id) REFERENCES food_categories(id) ON DELETE CASCADE,
+  FOREIGN KEY (simulant_id) REFERENCES simulants(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS substances (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  cas_no TEXT NOT NULL UNIQUE,
+  fcm_no INTEGER NOT NULL UNIQUE,
+  ec_ref_no INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sm_entries (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  substance_id INTEGER NOT NULL,
+  fcm_no INTEGER,
+  use_as_additive_or_ppa INTEGER NOT NULL,
+  use_as_monomer_or_starting_substance INTEGER NOT NULL,
+  frf_applicable INTEGER NOT NULL,
+  sml REAL,
+  restrictions_and_specifications TEXT,
+  FOREIGN KEY (substance_id) REFERENCES substances(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS group_restrictions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  group_sml REAL NOT NULL,
+  unit TEXT NOT NULL,
+  specification TEXT
+);
+
+CREATE TABLE IF NOT EXISTS sm_entry_group_restrictions (
+  sm_id INTEGER NOT NULL,
+  group_restriction_id INTEGER NOT NULL,
+  PRIMARY KEY (sm_id, group_restriction_id),
+  FOREIGN KEY (sm_id) REFERENCES sm_entries(id) ON DELETE CASCADE,
+  FOREIGN KEY (group_restriction_id) REFERENCES group_restrictions(id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS sm_time_conditions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  worst_case_time_minutes INTEGER NOT NULL,
+  testing_time_minutes INTEGER NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sm_temp_conditions (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  worst_case_temp_celsius INTEGER NOT NULL,
+  testing_temp_celsius INTEGER NOT NULL,
+  note TEXT
+);
+
+CREATE TABLE IF NOT EXISTS plan_favorites (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  payload TEXT NOT NULL,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+"""
+
+_engine: Optional[Engine] = None
+
+
+def init_app(app) -> None:
+    app.teardown_appcontext(close_connection)
+
+
+def get_engine() -> Engine:
+    global _engine
+    if _engine is None:
+        dsn = current_app.config.get("DATABASE_URL") or os.getenv("DATABASE_URL")
+        if not dsn:
+            # Default to the same MariaDB DSN used in nix shell to keep behaviour aligned.
+            dsn = "mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb"
+        _engine = create_engine(dsn, future=True)
+    return _engine
+
+
+def get_connection():
+    conn = g.get("_conn")
+    if conn is None:
+        conn = get_engine().connect()
+        g._conn = conn
+    return conn
+
+
+def close_connection(_=None) -> None:
+    conn = g.pop("_conn", None)
+    if conn is not None:
+        conn.close()
+
+
+def ensure_bootstrapped() -> None:
+    engine = get_engine()
+    if engine.url.get_backend_name().startswith("sqlite"):
+        raise RuntimeError(
+            "SQLite is no longer supported. Please set DATABASE_URL to a MariaDB DSN "
+            "(e.g. mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb)."
+        )
+    ensure_plan_favorites_table()
+
+
+def seed_from_sqlite(conn: sqlite3.Connection, path: Path) -> None:
+    if not path.exists():
+        return
+    statements: List[str] = []
+    current = []
+    for line in path.read_text().splitlines():
+        stripped = line.strip()
+        if not stripped or stripped.startswith("--") or stripped.lower().startswith("use "):
+            continue
+        current.append(line)
+        if stripped.endswith(";"):
+            statements.append("\n".join(current))
+            current = []
+    for stmt in statements:
+        conn.execute(stmt)
+
+
+def query(sql: str, params: Dict[str, Any] | None = None) -> List[Dict[str, Any]]:
+    conn = get_connection()
+    result = conn.execute(text(sql), params or {})
+    return [dict(row) for row in result.mappings().all()]
+
+
+def execute(sql: str, params: Dict[str, Any] | None = None) -> None:
+    engine = get_engine()
+    with engine.begin() as conn:
+        conn.execute(text(sql), params or {})
+
+
+def get_columns(table: str) -> List[Dict[str, Any]]:
+    inspector = inspect(get_engine())
+    cols = []
+    for col in inspector.get_columns(table):
+        cols.append(
+            {
+                "name": col["name"],
+                "type": str(col["type"]),
+                "nullable": col.get("nullable", True),
+                "primary_key": col.get("primary_key", False),
+            }
+        )
+    return cols
+
+
+def ensure_plan_favorites_table() -> None:
+    engine = get_engine()
+    is_sqlite = engine.url.get_backend_name().startswith("sqlite")
+    text_type = "TEXT" if is_sqlite else "JSON"
+    create_sql = """
+    CREATE TABLE IF NOT EXISTS plan_favorites (
+      id {id_col},
+      name {text_type_name} NOT NULL,
+      payload {text_type_payload} NOT NULL,
+      created_at {timestamp_col} DEFAULT CURRENT_TIMESTAMP
+    )
+    """.format(
+        id_col="INTEGER PRIMARY KEY AUTOINCREMENT" if is_sqlite else "INT AUTO_INCREMENT PRIMARY KEY",
+        text_type_name="TEXT",
+        text_type_payload=text_type,
+        timestamp_col="TIMESTAMP" if is_sqlite else "DATETIME",
+    )
+    with engine.begin() as conn:
+        conn.execute(text(create_sql))

@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS sm_entries (
   use_as_additive_or_ppa BOOLEAN NOT NULL,
   use_as_monomer_or_starting_substance BOOLEAN NOT NULL,
   frf_applicable BOOLEAN NOT NULL,
-  sml FLOAT,
+  sml VARCHAR(255),
   restrictions_and_specifications TEXT,
   FOREIGN KEY (substance_id) REFERENCES substances(id) ON DELETE CASCADE
 );
@@ -66,10 +66,22 @@ CREATE TABLE IF NOT EXISTS sm_entry_group_restrictions (
   FOREIGN KEY (group_restriction_id) REFERENCES group_restrictions(id) ON DELETE CASCADE
 );
 
-CREATE TABLE IF NOT EXISTS sm_conditions (
+CREATE TABLE IF NOT EXISTS sm_time_conditions (
   id INT AUTO_INCREMENT PRIMARY KEY,
-  worst_case_time INT NOT NULL,
-  testing_time INT NOT NULL,
-  worst_case_temp INT NOT NULL,
-  testing_temp INT NOT NULL
+  worst_case_time_minutes INT NOT NULL,
+  testing_time_minutes INT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS sm_temp_conditions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  worst_case_temp_celsius INT NOT NULL,
+  testing_temp_celsius INT NOT NULL,
+  note VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS plan_favorites (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  payload JSON NOT NULL,
+  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );

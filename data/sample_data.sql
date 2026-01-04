@@ -48,22 +48,24 @@ INSERT INTO substances (cas_no, fcm_no, ec_ref_no) VALUES
 ('0000093-58-3', 171, 38080),
 ('0000093-89-0', 172, 37840),
 ('0000094-13-3', 173, 60240),
-('0000095-48-7', 174, 14740);
+('0000095-48-7', 174, 14740),
+('UNLISTED_SUBSTANCE', 999999, 0);
 
 INSERT INTO sm_entries (substance_id, fcm_no, use_as_additive_or_ppa, use_as_monomer_or_starting_substance, frf_applicable, sml, restrictions_and_specifications) VALUES
-(1, 162, 1, 0, 0, NULL, NULL),
-(2, 163, 1, 0, 1, NULL, 'Note (13) applies.'),
+(1, 162, 1, 0, 0, 30, NULL),
+(2, 163, 1, 0, 1, "ND", 'Note (13) applies.'),
 (3, 164, 1, 0, 0, 0.05, 'Only for use in PET for water and beverages.'),
-(4, 165, 1, 1, 0, NULL, 'Additional ref: 74480.'),
+(4, 165, 1, 1, 0, 6, 'Additional ref: 74480.'),
 (5, 166, 0, 1, 0, 0.05, NULL),
 (6, 167, 0, 1, 0, 1, '1 mg/kg in final product expressed as isocyanate moiety. Notes (10) apply.'),
 (7, 168, 0, 1, 0, 5, 'See ref 15310 (M8).'),
 (8, 169, 0, 1, 0, 1, '1 mg/kg in final product expressed as isocyanate moiety. Notes (10) apply.'),
 (9, 170, 0, 1, 0, 6, NULL),
 (10, 171, 1, 0, 0, NULL, NULL),
-(11, 172, 1, 0, 0, NULL, NULL),
-(12, 173, 1, 0, 0, NULL, NULL),
-(13, 174, 0, 1, 0, NULL, NULL);
+(11, 172, 1, 0, 0, 3, NULL),
+(12, 173, 1, 0, 0, 0.01, NULL),
+(13, 174, 0, 1, 0, "ND", NULL),
+(14, 999999, 0, 0, 0, 0.01, 'Default entry for non-listed substances.');
 
 INSERT INTO group_restrictions (group_sml, unit, specification) VALUES
 (1, 'FOOD_KG', 'Expressed as isocyanate moiety');
@@ -72,7 +74,27 @@ INSERT INTO sm_entry_group_restrictions (sm_id, group_restriction_id) VALUES
 (6, 1),
 (8, 1);
 
-INSERT INTO sm_conditions (worst_case_time, testing_time, worst_case_temp, testing_temp) VALUES
-(10, 10, 40, 40),
-(2, 2, 70, 70),
-(0, 0, 100, 100);
+-- Time-based conditions (minutes).
+INSERT INTO sm_time_conditions (worst_case_time_minutes, testing_time_minutes) VALUES
+(5, 5),
+(30, 30),
+(60, 60),
+(120, 120),
+(360, 360),
+(1440, 1440),
+(4320, 4320),
+(43200, 14400);
+
+-- Temperature-based conditions (Celsius).
+-- The last row represents any contact temperature above 175C; testing_temp_celsius should be adjusted to the actual interface temperature.
+INSERT INTO sm_temp_conditions (worst_case_temp_celsius, testing_temp_celsius, note) VALUES
+(5, 5, NULL),
+(20, 20, NULL),
+(40, 40, NULL),
+(70, 70, NULL),
+(100, 100, 'Or reflux temperature'),
+(121, 121, 'Adjust to interface temperature'),
+(130, 130, 'Adjust to interface temperature'),
+(150, 150, 'Adjust to interface temperature'),
+(175, 175, 'Adjust to interface temperature'),
+(176, 176, 'Above 175C: adjust to interface temperature');

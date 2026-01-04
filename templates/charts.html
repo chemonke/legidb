@@ -54,18 +54,29 @@
 {% endblock %}
 
 {% block content %}
-<section class="section">
-  <div class="section-header">
-    <h1>Graphics</h1>
-    <p>Quick visual summary powered by Google Charts. Charts update using live DB data.</p>
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+    <h1 class="h4 mb-0">Graphics</h1>
+    <span class="badge text-bg-secondary">Live DB data</span>
   </div>
-  <div class="chart-grid">
-    <div class="chart-card">
-      <div id="food-category-chart"></div>
-    </div>
-    <div class="chart-card">
-      <div id="simulant-chart"></div>
+</div>
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="fw-semibold mb-2">Foods per Annex III category</div>
+        <div id="food-category-chart" class="chart-box"></div>
+      </div>
     </div>
   </div>
-</section>
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0">
+      <div class="card-body">
+        <div class="fw-semibold mb-2">Simulant coverage across categories</div>
+        <div id="simulant-chart" class="chart-box"></div>
+      </div>
+    </div>
+  </div>
+</div>
 {% endblock %}
