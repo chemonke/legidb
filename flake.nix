@@ -45,11 +45,46 @@
             exec python ${./run.py}
           '';
         };
+
+        dockerDevImage = pkgs.dockerTools.buildLayeredImage {
+          name = "legidb-dev";
+          tag = "latest";
+          # Include the same toolchain as the dev shell so non-Nix users can work from a container.
+          contents = [
+            (pkgs.buildEnv {
+              name = "legidb-dev-env";
+              paths = [
+                pythonEnv
+                mariadb
+                pkgs.coreutils
+                pkgs.git
+                pkgs.bashInteractive
+                pkgs.findutils
+                pkgs.gnugrep
+                pkgs.gnused
+                pkgs.procps
+                pkgs.cacert
+              ];
+              pathsToLink = [ "/bin" "/etc" "/lib" "/share" ];
+            })
+          ];
+          config = {
+            Env = [
+              "DATABASE_URL=mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb"
+              "PATH=/bin:/usr/bin:/usr/local/bin"
+              "LC_ALL=C.UTF-8"
+            ];
+            WorkingDir = "/workspace";
+            Volumes = { "/workspace" = {}; };
+            Cmd = [ "bash" ];
+          };
+        };
       in {
         packages = {
           "db-start" = dbStart;
           "db-stop" = dbStop;
           app = runApp;
+          docker-image-dev = dockerDevImage;
         };
 
         apps = {
@@ -80,6 +115,6 @@
           '';
         };
 
-        formatter = pkgs.nixpkgs-fmt;
+          formatter = pkgs.nixpkgs-fmt;
       });
 }

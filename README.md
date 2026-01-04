@@ -12,11 +12,25 @@ This project keeps a local database of food-contact materials (FCM), simulants, 
 I have this delusion that makes me think following laws should be comprehensible and easy to follow (weird, I know). Unfortunately legislators and authors of legal documents appear to disagree.
 
 ## Installation
+### Nix (native)
 First, you'll need the Nix package manager. Don't worry, everything done here is ephemeral, we won't be polluting your system.
 
 `brew install nix`
 
 `nix run .#db-start`
+
+### No Nix? Use the dev container
+We publish (or you can build) a dev image that contains the same toolchain as `nix develop`. It lets non-Nix users work against the repo via Docker.
+
+- Pull the image (replace `ghcr.io/chemonke/legidb-dev:latest` with your registry/tag):  
+  `docker pull ghcr.io/you/legidb-dev:latest`
+- Run it with your working tree mounted:  
+  `docker run -it --rm -v "$PWD":/workspace -p 5000:5000 -p 3307:3307 ghcr.io/you/legidb-dev:latest`
+- Inside the container:  
+  `scripts/start_ephemeral_mariadb.sh` (starts MariaDB on 3307)  
+  `python run.py`
+
+To build the image yourself (for pushing to a registry), run `nix build .#docker-image-dev` and then `docker load < result`.
 
 ## Usage
 
