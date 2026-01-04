@@ -13,11 +13,22 @@ I have this delusion that makes me think following laws should be comprehensible
 
 ## Installation
 ### Nix (native)
-First, you'll need the Nix package manager. Don't worry, everything done here is ephemeral, we won't be polluting your system.
+To simply test ephemerally the page you can initialize the db using 
 
-`brew install nix`
+`nix run github:chemonke/legidb#db-start`
 
-`nix run .#db-start`
+and start the flask app using 
+
+`nix run github:chemonke/legidb#app`
+
+if you have cloned the repo you can do the same with
+
+`nix run .#db-start` and `nix run .#app`
+
+If you wish to work on the code, clone the repo and run `nix develop` to enter the devshell.
+
+To stop the db use `nix run .#db-stop`, optionally with the `-- --clean` flag to purge its contents.
+
 
 ### No Nix? Use the dev container
 We publish (or you can build) a dev image that contains the same toolchain as `nix develop`. It lets non-Nix users work against the repo via Docker.

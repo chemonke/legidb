@@ -9,6 +9,24 @@ SOCKET="$BASE_DIR/mysql.sock"
 PID_FILE="$BASE_DIR/mariadb.pid"
 LOG_FILE="$BASE_DIR/mariadb.log"
 PORT="${PORT:-3307}"
+SCHEMA_ARG=""
+SAMPLE_ARG=""
+# Allow explicit schema/sample overrides (used by flake to pass store paths).
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --schema-sql)
+      SCHEMA_ARG="$2"
+      shift 2
+      ;;
+    --sample-sql)
+      SAMPLE_ARG="$2"
+      shift 2
+      ;;
+    *)
+      break
+      ;;
+  esac
+done
 # Try to locate the repo root to find schema/sample files:
 # 1) LEGIDB_ROOT override
 # 2) Current working dir if it has data/schema.sql
@@ -26,6 +44,17 @@ else
 fi
 SCHEMA_SQL="$REPO_ROOT/data/schema.sql"
 SAMPLE_SQL="$REPO_ROOT/data/sample_data.sql"
+# Fallback to bundled store paths when running via remote flake (no checkout).
+if [[ -n "$SCHEMA_ARG" ]]; then
+  SCHEMA_SQL="$SCHEMA_ARG"
+elif [[ ! -f "$SCHEMA_SQL" ]]; then
+  SCHEMA_SQL="@schema_sql@"
+fi
+if [[ -n "$SAMPLE_ARG" ]]; then
+  SAMPLE_SQL="$SAMPLE_ARG"
+elif [[ ! -f "$SAMPLE_SQL" ]]; then
+  SAMPLE_SQL="@sample_sql@"
+fi
 
 mkdir -p "$DATA_DIR"
 
