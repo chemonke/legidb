@@ -56,15 +56,6 @@ header .nav-link:focus {
   min-height: 300px;
 }
 
-pre {
-  background: #0f172a;
-  color: #e5e7eb;
-  padding: 12px;
-  border-radius: 10px;
-  overflow-x: auto;
-  font-size: 14px;
-}
-
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
   margin-top: 1.2rem;
   margin-bottom: 0.6rem;
@@ -84,4 +75,19 @@ pre {
   background: #e5e7eb;
   padding: 2px 4px;
   border-radius: 6px;
+  color: #1f2a3d;
+}
+
+.markdown-body pre {
+  background: #e5e7eb;
+  color: #1f2a3d;
+  padding: 12px;
+  border-radius: 10px;
+  overflow-x: auto;
+  font-size: 14px;
+}
+
+.markdown-body pre code {
+  background: none;
+  color: inherit;
 }

@@ -48,7 +48,8 @@ INSERT INTO substances (cas_no, fcm_no, ec_ref_no) VALUES
 ('0000093-58-3', 171, 38080),
 ('0000093-89-0', 172, 37840),
 ('0000094-13-3', 173, 60240),
-('0000095-48-7', 174, 14740);
+('0000095-48-7', 174, 14740),
+('UNLISTED_SUBSTANCE', 999999, 0);
 
 INSERT INTO sm_entries (substance_id, fcm_no, use_as_additive_or_ppa, use_as_monomer_or_starting_substance, frf_applicable, sml, restrictions_and_specifications) VALUES
 (1, 162, 1, 0, 0, 30, NULL),
@@ -63,7 +64,8 @@ INSERT INTO sm_entries (substance_id, fcm_no, use_as_additive_or_ppa, use_as_mon
 (10, 171, 1, 0, 0, NULL, NULL),
 (11, 172, 1, 0, 0, 3, NULL),
 (12, 173, 1, 0, 0, 0.01, NULL),
-(13, 174, 0, 1, 0, "ND", NULL);
+(13, 174, 0, 1, 0, "ND", NULL),
+(14, 999999, 0, 0, 0, 0.01, 'Default entry for non-listed substances.');
 
 INSERT INTO group_restrictions (group_sml, unit, specification) VALUES
 (1, 'FOOD_KG', 'Expressed as isocyanate moiety');

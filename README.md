@@ -12,6 +12,9 @@ This project keeps a local database of food-contact materials (FCM), simulants, 
 I have this delusion that makes me think following laws should be comprehensible and easy to follow (weird, I know). Unfortunately legislators and authors of legal documents appear to disagree.
 
 ## Installation
+First, you'll need the Nix package manager. Don't worry, everything done here is ephemeral, we won't be polluting your system.
+
+`brew install nix`
 
 `nix run .#db-start`
 

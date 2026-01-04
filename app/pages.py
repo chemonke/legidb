@@ -8,6 +8,117 @@ from .db import query
 bp = Blueprint("pages", __name__)
 
 
+def render_markdown_to_html(raw: str) -> str:
+    """
+    Render markdown if the markdown package is available; otherwise fall back to a small
+    built-in converter that supports headings, lists, paragraphs, and fenced code blocks.
+    """
+    try:
+        import markdown
+
+        return markdown.markdown(raw, extensions=["fenced_code", "tables", "toc"])
+    except Exception:
+        pass
+
+    import html
+    import re
+
+    lines = raw.splitlines()
+    parts: List[str] = []
+    in_code = False
+    in_list = False
+
+    link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+    inline_code_pattern = re.compile(r"`([^`]+)`")
+
+    def slugify(text: str) -> str:
+        slug = re.sub(r"[^\w\s-]", "", text).strip().lower()
+        slug = re.sub(r"[\s]+", "-", slug)
+        return html.escape(slug, quote=True)
+
+    def render_links(text: str) -> str:
+        result: List[str] = []
+        last = 0
+        for match in link_pattern.finditer(text):
+            result.append(html.escape(text[last:match.start()]))
+            label = html.escape(match.group(1))
+            href = html.escape(match.group(2), quote=True)
+            result.append(f'<a href="{href}">{label}</a>')
+            last = match.end()
+        result.append(html.escape(text[last:]))
+        return "".join(result)
+
+    def render_inline(text: str) -> str:
+        result: List[str] = []
+        last = 0
+        for match in inline_code_pattern.finditer(text):
+            # Render preceding text (with links) before inline code
+            if match.start() > last:
+                result.append(render_links(text[last:match.start()]))
+            code_content = html.escape(match.group(1))
+            result.append(f"<code>{code_content}</code>")
+            last = match.end()
+        # Trailing text after the last inline code block
+        if last < len(text):
+            result.append(render_links(text[last:]))
+        return "".join(result)
+
+    def close_list():
+        nonlocal in_list
+        if in_list:
+            parts.append("</ul>")
+            in_list = False
+
+    for line in lines:
+        stripped = line.strip()
+        if stripped.startswith("```"):
+            close_list()
+            if not in_code:
+                parts.append("<pre><code>")
+                in_code = True
+            else:
+                parts.append("</code></pre>")
+                in_code = False
+            continue
+
+        if in_code:
+            parts.append(html.escape(line))
+            continue
+
+        if stripped.startswith("### "):
+            close_list()
+            heading = stripped[4:]
+            parts.append(f'<h3 id="{slugify(heading)}">{render_inline(heading)}</h3>')
+            continue
+        if stripped.startswith("## "):
+            close_list()
+            heading = stripped[3:]
+            parts.append(f'<h2 id="{slugify(heading)}">{render_inline(heading)}</h2>')
+            continue
+        if stripped.startswith("# "):
+            close_list()
+            heading = stripped[2:]
+            parts.append(f'<h1 id="{slugify(heading)}">{render_inline(heading)}</h1>')
+            continue
+
+        if stripped.startswith("- "):
+            if not in_list:
+                parts.append("<ul>")
+                in_list = True
+            parts.append(f"<li>{render_inline(stripped[2:])}</li>")
+            continue
+        else:
+            close_list()
+
+        if stripped:
+            parts.append(f"<p>{render_inline(stripped)}</p>")
+
+    close_list()
+    if in_code:
+        parts.append("</code></pre>")
+    return "\n".join(parts)
+
+
 @bp.route("/")
 def index():
     rows = query(
@@ -106,12 +217,7 @@ def about():
     readme_path = Path(bp.root_path).parent / "README.md"
     try:
         raw = readme_path.read_text()
-        try:
-            import markdown
-
-            readme_html = markdown.markdown(raw)
-        except Exception:
-            readme_html = f"<pre>{raw}</pre>"
+        readme_html = render_markdown_to_html(raw)
         return render_template("about.html", readme_html=readme_html, readme_error=None)
     except FileNotFoundError as exc:
         return render_template(

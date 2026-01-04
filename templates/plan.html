@@ -111,7 +111,11 @@
         </div>
         <div class="mb-2 position-relative">
           <label class="form-label">Start typing a CAS, FCM, or EC reference</label>
-          <input type="text" class="form-control" id="substance-input" placeholder="e.g. 0000087-78-5 or 162" autocomplete="off">
+          <div class="input-group">
+            <input type="text" class="form-control" id="substance-input" placeholder="e.g. 0000087-78-5 or 162" autocomplete="off">
+            <button class="btn btn-outline-secondary" type="button" id="substance-add">Add as unlisted</button>
+          </div>
+          <div class="form-text">Press Enter or use "Add as unlisted" for compounds not in the database (defaults to SML 0.01 mg/kg).</div>
           <div class="autocomplete-box shadow-sm" id="substance-suggestions"></div>
         </div>
         <div id="substance-tags" class="d-flex flex-wrap gap-2"></div>
@@ -189,6 +193,7 @@
     const substanceTags = document.getElementById('substance-tags');
     const foodSuggestions = document.getElementById('food-suggestions');
     const substanceSuggestions = document.getElementById('substance-suggestions');
+    const substanceAddBtn = document.getElementById('substance-add');
     const conditionRows = document.getElementById('condition-rows');
     const addConditionBtn = document.getElementById('add-condition');
     const downloadBtn = document.getElementById('download-json');
@@ -289,17 +294,53 @@
       return `${minutes} min`;
     }
 
+    function hasSelectedSubstanceCas(casNo) {
+      const needle = (casNo || '').trim().toLowerCase();
+      if (!needle) return false;
+      let found = false;
+      substances.forEach(entry => {
+        const casVal = typeof entry === 'string' ? null : entry.cas_no;
+        if (casVal && casVal.toLowerCase() === needle) {
+          found = true;
+        }
+      });
+      return found;
+    }
+
+    function addCustomSubstance(casNo) {
+      const cleaned = (casNo || '').trim();
+      if (!cleaned || hasSelectedSubstanceCas(cleaned)) return;
+      substances.set(`custom:${cleaned}`, {
+        label: `CAS ${cleaned} (unlisted default)`,
+        type: 'custom',
+        cas_no: cleaned,
+      });
+      renderTags(substanceTags, substances, document.getElementById('substance-count'));
+      substanceInput.value = '';
+      substanceSuggestions.style.display = 'none';
+    }
+
     function hydrateSelectionsFromPlan(plan) {
       foods.clear();
       substances.clear();
       if (Array.isArray(plan.foods)) {
         plan.foods.forEach(f => {
-          if (f.id) foods.set(f.id, `${f.name} (Annex III ${f.ref_no})`);
+            if (f.id) foods.set(f.id, `${f.name} (Annex III ${f.ref_no})`);
         });
       }
       if (Array.isArray(plan.substances)) {
         plan.substances.forEach(s => {
-          if (s.id) substances.set(s.id, `CAS ${s.cas_no} · FCM ${s.fcm_no} · EC ${s.ec_ref_no}`);
+          const key = s.unique_key || (s.id ? `db:${s.id}` : `custom:${s.cas_no}`);
+          const isCustom = !!s.unlisted_fallback;
+          const fcmPart = (s.fcm_no || s.fcm_no === 0) ? ` · FCM ${s.fcm_no}` : '';
+          const ecPart = (s.ec_ref_no || s.ec_ref_no === 0) ? ` · EC ${s.ec_ref_no}` : '';
+          const label = `CAS ${s.cas_no}${fcmPart}${ecPart}${isCustom ? ' (unlisted default)' : ''}`;
+          substances.set(key, {
+            label,
+            type: isCustom ? 'custom' : 'db',
+            id: isCustom ? null : s.id,
+            cas_no: s.cas_no,
+          });
         });
       }
       renderTags(foodTags, foods, document.getElementById('food-count'));
@@ -329,12 +370,13 @@
 
     function renderTags(container, dataMap, countEl) {
       container.innerHTML = '';
-      dataMap.forEach((label, id) => {
+      dataMap.forEach((entry, key) => {
+        const label = typeof entry === 'string' ? entry : entry.label;
         const tag = document.createElement('span');
         tag.className = 'tag';
         tag.innerHTML = `<span>${label}</span> <button type="button" aria-label="Remove">×</button>`;
         tag.querySelector('button').addEventListener('click', () => {
-          dataMap.delete(id);
+          dataMap.delete(key);
           renderTags(container, dataMap, countEl);
         });
         container.appendChild(tag);
@@ -351,7 +393,12 @@
         }
         const res = await fetch(`/api/suggest/${kind}?q=${encodeURIComponent(q)}`);
         if (!res.ok) return;
-        const items = (await res.json()).filter(item => !dataMap.has(item.id));
+        const items = (await res.json()).filter(item => {
+          if (kind === 'substances') {
+            return !hasSelectedSubstanceCas(item.cas_no);
+          }
+          return !dataMap.has(item.id);
+        });
         suggestionBox.innerHTML = '';
         if (!items.length) {
           suggestionBox.style.display = 'none';
@@ -362,7 +409,11 @@
           div.className = 'autocomplete-item';
           div.textContent = item.label;
           div.addEventListener('click', () => {
-            dataMap.set(item.id, item.label);
+            const key = kind === 'substances' ? `db:${item.id}` : item.id;
+            const entry = kind === 'substances'
+              ? { label: item.label, type: 'db', id: item.id, cas_no: item.cas_no }
+              : item.label;
+            dataMap.set(key, entry);
             renderTags(inputEl.id === 'food-input' ? foodTags : substanceTags, dataMap, countEl);
             inputEl.value = '';
             suggestionBox.style.display = 'none';
@@ -381,6 +432,27 @@
 
     attachAutocomplete(foodInput, foodSuggestions, 'foods', foods, document.getElementById('food-count'));
     attachAutocomplete(substanceInput, substanceSuggestions, 'substances', substances, document.getElementById('substance-count'));
+    substanceInput.addEventListener('keydown', (evt) => {
+      if (evt.key === 'Enter') {
+        evt.preventDefault();
+        addCustomSubstance(substanceInput.value);
+      }
+    });
+    substanceAddBtn.addEventListener('click', () => addCustomSubstance(substanceInput.value));
+
+    function splitSubstanceSelections() {
+      const ids = [];
+      const customCas = [];
+      substances.forEach(entry => {
+        if (typeof entry === 'string') return;
+        if (entry.type === 'db' && entry.id !== undefined && entry.id !== null) {
+          ids.push(entry.id);
+        } else if (entry.type === 'custom' && entry.cas_no) {
+          customCas.push(entry.cas_no);
+        }
+      });
+      return { ids, customCas };
+    }
 
     function updateDownloadState() {
       const hasPlan = !!lastPlanData;
@@ -521,6 +593,13 @@
           const block = document.createElement('div');
           block.className = 'plan-block';
           const groupLimits = (sub.group_limits || []).map(gl => `<div class="pill tight">Group SML: ${gl.group_sml} ${gl.unit}</div>${gl.specification ? `<div class="text-muted small">${gl.specification}</div>` : ""}`).join("");
+          const uniqueKey = sub.unique_key || (sub.id ? `db:${sub.id}` : `custom:${sub.cas_no || 'unknown'}`);
+          const fcmText = sub.fcm_no === 0 || sub.fcm_no ? sub.fcm_no : 'n/a';
+          const ecText = sub.ec_ref_no === 0 || sub.ec_ref_no ? sub.ec_ref_no : 'n/a';
+          const unlistedBadge = sub.unlisted_fallback ? `<div class="pill tight bg-warning-subtle">Unlisted fallback</div>` : "";
+          const sourceNote = sub.unlisted_fallback && sub.source_substance_cas
+            ? `<div class="text-muted small">Uses default entry ${sub.source_substance_cas} with SML ${sub.sml} mg/kg.</div>`
+            : "";
           (sub.group_limits || []).forEach(gl => {
             if (!gl.group_restriction_id) return;
             const existing = groupBuckets.get(gl.group_restriction_id);
@@ -531,18 +610,20 @@
                 specification: gl.specification,
                 substances: [sub],
               });
-            } else if (!existing.substances.some(s => s.id === sub.id)) {
+            } else if (!existing.substances.some(s => (s.unique_key || s.id) === uniqueKey)) {
               existing.substances.push(sub);
             }
           });
           block.innerHTML = `
             <div class="d-flex justify-content-between align-items-start">
               <div>
-                <div class="fw-semibold">CAS ${sub.cas_no}</div>
-                <div class="text-muted small">FCM ${sub.fcm_no} · EC ${sub.ec_ref_no}</div>
+                <div class="fw-semibold">CAS ${sub.cas_no || "n/a"}</div>
+                <div class="text-muted small">FCM ${fcmText} · EC ${ecText}</div>
+                ${sourceNote}
               </div>
               <div class="text-end">
-                ${sub.sml !== null ? `<div class="pill tight">SML: ${sub.sml} mg/kg</div>` : `<div class="text-muted small">No SML set</div>`}
+                ${unlistedBadge}
+                ${sub.sml !== null && sub.sml !== undefined ? `<div class="pill tight">SML: ${sub.sml} mg/kg</div>` : `<div class="text-muted small">No SML set</div>`}
                 ${sub.use_as_additive_or_ppa !== null ? `<div class="pill tight">Additive/PPA: ${sub.use_as_additive_or_ppa ? "Yes" : "No"}</div>` : ""}
                 ${sub.use_as_monomer_or_starting_substance !== null ? `<div class="pill tight">Monomer/start: ${sub.use_as_monomer_or_starting_substance ? "Yes" : "No"}</div>` : ""}
                 ${sub.frf_applicable !== null ? `<div class="pill tight">FRF: ${sub.frf_applicable ? "Applicable" : "Not applicable"}</div>` : ""}
@@ -650,12 +731,17 @@
 
     generateBtn.addEventListener('click', async () => {
       planOutput.innerHTML = document.getElementById('loading-template').innerHTML;
+      if (substanceInput.value.trim()) {
+        addCustomSubstance(substanceInput.value);
+      }
+      const { ids: substanceIds, customCas } = splitSubstanceSelections();
       const res = await fetch('/api/generate-plan', {
         method: 'POST',
         headers: {'Content-Type': 'application/json'},
         body: JSON.stringify({
           food_ids: Array.from(foods.keys()),
-          substance_ids: Array.from(substances.keys()),
+          substance_ids: substanceIds,
+          custom_cas_numbers: customCas,
           conditions: collectConditions(),
         }),
       });

@@ -6,6 +6,7 @@ from flask import Blueprint, jsonify, request
 from .db import execute, query
 
 bp = Blueprint("api", __name__)
+UNLISTED_SUBSTANCE_CAS = "UNLISTED_SUBSTANCE"
 
 
 @bp.route("/foods")
@@ -132,6 +133,7 @@ def suggest_substances():
             {
                 "id": row["id"],
                 "label": f"CAS {row['cas_no']} · FCM {row['fcm_no']} · EC {row['ec_ref_no']}",
+                "cas_no": row["cas_no"],
             }
             for row in rows
         ]
@@ -143,6 +145,11 @@ def generate_plan():
     payload = request.get_json(silent=True) or {}
     food_ids = payload.get("food_ids") or []
     substance_ids = payload.get("substance_ids") or []
+    custom_cas_numbers = []
+    for raw in payload.get("custom_cas_numbers") or []:
+        cas_no = str(raw).strip()
+        if cas_no and cas_no not in custom_cas_numbers:
+            custom_cas_numbers.append(cas_no)
     worst_case_time_input = payload.get("worst_case_time_minutes")
     worst_case_temp_input = payload.get("worst_case_temp_celsius")
     condition_inputs = payload.get("conditions")
@@ -187,6 +194,41 @@ def generate_plan():
                 }
             )
 
+    def to_bool(val):
+        return bool(val) if val is not None else None
+
+    def get_group_limits(sm_entry_id):
+        if not sm_entry_id:
+            return []
+        return query(
+            """
+            SELECT gr.id AS group_restriction_id, gr.group_sml, gr.unit, gr.specification
+            FROM group_restrictions gr
+            JOIN sm_entry_group_restrictions sgr ON sgr.group_restriction_id = gr.id
+            WHERE sgr.sm_id = :sm_id
+            """,
+            {"sm_id": sm_entry_id},
+        )
+
+    def serialize_substance(row, *, unique_key, cas_override=None, extra=None):
+        group_limits = get_group_limits(row.get("sm_entry_id"))
+        payload = {
+            "id": row.get("id"),
+            "cas_no": cas_override if cas_override is not None else row.get("cas_no"),
+            "fcm_no": row.get("fcm_no"),
+            "ec_ref_no": row.get("ec_ref_no"),
+            "use_as_additive_or_ppa": to_bool(row.get("use_as_additive_or_ppa")),
+            "use_as_monomer_or_starting_substance": to_bool(row.get("use_as_monomer_or_starting_substance")),
+            "frf_applicable": to_bool(row.get("frf_applicable")),
+            "sml": row.get("sml"),
+            "restrictions_and_specifications": row.get("restrictions_and_specifications"),
+            "group_limits": [dict(gl) for gl in group_limits],
+            "unique_key": unique_key,
+        }
+        if extra:
+            payload.update(extra)
+        return payload
+
     substances_details = []
     if substance_ids:
         placeholders = ", ".join(f":sub_id_{i}" for i in range(len(substance_ids)))
@@ -206,29 +248,53 @@ def generate_plan():
             {f"sub_id_{i}": sid for i, sid in enumerate(substance_ids)},
         )
         for row in subs:
-            group_limits = []
-            if row["sm_entry_id"]:
-                group_limits = query(
-                    """
-                    SELECT gr.id AS group_restriction_id, gr.group_sml, gr.unit, gr.specification
-                    FROM group_restrictions gr
-                    JOIN sm_entry_group_restrictions sgr ON sgr.group_restriction_id = gr.id
-                    WHERE sgr.sm_id = :sm_id
-                    """,
-                    {"sm_id": row["sm_entry_id"]},
-                )
+            substances_details.append(serialize_substance(row, unique_key=f"db:{row['id']}"))
+
+    def load_unlisted_template():
+        rows = query(
+            """
+            SELECT s.id, s.cas_no, s.fcm_no, s.ec_ref_no,
+                   se.id AS sm_entry_id,
+                   se.use_as_additive_or_ppa,
+                   se.use_as_monomer_or_starting_substance,
+                   se.frf_applicable,
+                   se.sml,
+                   se.restrictions_and_specifications
+            FROM substances s
+            LEFT JOIN sm_entries se ON se.substance_id = s.id
+            WHERE s.cas_no = :cas_no
+            LIMIT 1
+            """,
+            {"cas_no": UNLISTED_SUBSTANCE_CAS},
+        )
+        if rows:
+            return serialize_substance(rows[0], unique_key="unlisted-template")
+        return {
+            "id": None,
+            "cas_no": UNLISTED_SUBSTANCE_CAS,
+            "fcm_no": None,
+            "ec_ref_no": None,
+            "use_as_additive_or_ppa": None,
+            "use_as_monomer_or_starting_substance": None,
+            "frf_applicable": None,
+            "sml": 0.01,
+            "restrictions_and_specifications": "Default limit for non-listed substances.",
+            "group_limits": [],
+            "unique_key": "unlisted-template",
+        }
+
+    if custom_cas_numbers:
+        base_unlisted = load_unlisted_template()
+        for cas_no in custom_cas_numbers:
             substances_details.append(
                 {
-                    "id": row["id"],
-                    "cas_no": row["cas_no"],
-                    "fcm_no": row["fcm_no"],
-                    "ec_ref_no": row["ec_ref_no"],
-                    "use_as_additive_or_ppa": bool(row["use_as_additive_or_ppa"]) if row["use_as_additive_or_ppa"] is not None else None,
-                    "use_as_monomer_or_starting_substance": bool(row["use_as_monomer_or_starting_substance"]) if row["use_as_monomer_or_starting_substance"] is not None else None,
-                    "frf_applicable": bool(row["frf_applicable"]) if row["frf_applicable"] is not None else None,
-                    "sml": row["sml"],
-                    "restrictions_and_specifications": row["restrictions_and_specifications"],
-                    "group_limits": [dict(gl) for gl in group_limits],
+                    **base_unlisted,
+                    "cas_no": cas_no,
+                    "unique_key": f"custom:{cas_no}",
+                    "unlisted_fallback": True,
+                    "source_substance_id": base_unlisted.get("id"),
+                    "source_substance_cas": base_unlisted.get("cas_no"),
+                    "group_limits": [dict(gl) for gl in base_unlisted.get("group_limits", [])],
                 }
             )
 
