@@ -45,7 +45,7 @@ CREATE TABLE IF NOT EXISTS sm_entries (
   use_as_additive_or_ppa BOOLEAN NOT NULL,
   use_as_monomer_or_starting_substance BOOLEAN NOT NULL,
   frf_applicable BOOLEAN NOT NULL,
-  sml FLOAT,
+  sml VARCHAR(255),
   restrictions_and_specifications TEXT,
   FOREIGN KEY (substance_id) REFERENCES substances(id) ON DELETE CASCADE
 );

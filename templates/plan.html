@@ -1,0 +1,376 @@
+{% extends "base.html" %}
+
+{% block head %}
+  <style>
+    .autocomplete-box {
+      position: absolute;
+      top: 100%;
+      left: 0;
+      margin-top: 4px;
+      background: white;
+      border-radius: 10px;
+      border: 1px solid #e5e7eb;
+      width: 100%;
+      max-height: 220px;
+      overflow-y: auto;
+      z-index: 20;
+      display: none;
+    }
+    .autocomplete-item {
+      padding: 10px 12px;
+      cursor: pointer;
+    }
+    .autocomplete-item:hover {
+      background: #f3f4f6;
+    }
+    .tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      background: #eef2ff;
+      border: 1px solid #d4d8f0;
+      padding: 6px 10px;
+      border-radius: 999px;
+      font-weight: 600;
+      font-size: 13px;
+    }
+    .tag button {
+      border: none;
+      background: transparent;
+      padding: 0;
+      color: #6b7280;
+    }
+    .plan-block {
+      border-radius: 12px;
+      border: 1px solid #e5e7eb;
+      padding: 16px;
+      margin-bottom: 12px;
+      background: white;
+    }
+  </style>
+{% endblock %}
+
+{% block content %}
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body d-flex flex-wrap justify-content-between align-items-start gap-3">
+    <div>
+      <div class="text-uppercase small text-muted fw-semibold">Planner</div>
+      <h1 class="h4 mb-1">Test plan generator</h1>
+      <p class="mb-0 text-muted">Pick foods and compounds, then generate a tailored analysis plan with SMLs, group limits, and simulants.</p>
+    </div>
+    <div class="text-end">
+      <div class="badge text-bg-primary">Baseline: {{ baseline_time or "?" }} min · {{ baseline_temp or "?" }} °C</div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body">
+    <div class="d-flex justify-content-between align-items-center mb-2">
+      <div>
+        <div class="fw-semibold text-uppercase small text-muted">Expected contact</div>
+        <div class="fw-semibold">Worst-case duration &amp; temperature</div>
+      </div>
+      <span class="badge text-bg-secondary">Drives test time/temperature selection</span>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label">Worst-case contact time (minutes)</label>
+        <div class="input-group">
+          <input type="number" min="0" class="form-control" id="worst-time" placeholder="e.g. 120">
+          <select class="form-select" id="worst-time-unit">
+            <option value="minutes" selected>Minutes</option>
+            <option value="hours">Hours</option>
+            <option value="days">Days</option>
+          </select>
+        </div>
+        <div class="form-text">We’ll match the nearest rule that covers this time (auto-converted to minutes).</div>
+      </div>
+      <div class="col-md-6">
+        <label class="form-label">Worst-case contact temperature (°C)</label>
+        <input type="number" min="0" class="form-control" id="worst-temp" placeholder="e.g. 100">
+        <div class="form-text">We’ll pull the corresponding testing temperature from Annex defaults.</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3 mb-3">
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <div class="fw-semibold text-uppercase small text-muted">Foods</div>
+            <div class="fw-semibold">Contact foods</div>
+          </div>
+          <span class="badge text-bg-secondary" id="food-count">0 selected</span>
+        </div>
+        <div class="mb-2 position-relative">
+          <label class="form-label">Start typing a food name or Annex III ref</label>
+          <input type="text" class="form-control" id="food-input" placeholder="e.g. water, chocolate, 01.01A" autocomplete="off">
+          <div class="autocomplete-box shadow-sm" id="food-suggestions"></div>
+        </div>
+        <div id="food-tags" class="d-flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card shadow-sm border-0 h-100">
+      <div class="card-body">
+        <div class="d-flex justify-content-between align-items-center mb-2">
+          <div>
+            <div class="fw-semibold text-uppercase small text-muted">Compounds</div>
+            <div class="fw-semibold">FCM substances</div>
+          </div>
+          <span class="badge text-bg-secondary" id="substance-count">0 selected</span>
+        </div>
+        <div class="mb-2 position-relative">
+          <label class="form-label">Start typing a CAS, FCM, or EC reference</label>
+          <input type="text" class="form-control" id="substance-input" placeholder="e.g. 0000087-78-5 or 162" autocomplete="off">
+          <div class="autocomplete-box shadow-sm" id="substance-suggestions"></div>
+        </div>
+        <div id="substance-tags" class="d-flex flex-wrap gap-2"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm border-0 mb-3">
+  <div class="card-body d-flex flex-wrap justify-content-between align-items-center gap-2">
+    <div>
+      <div class="fw-semibold">Combine selections</div>
+      <p class="mb-0 text-muted">Pulls simulants, FRF hints, SMLs, group limits, and time/temperature tables from the local dataset.</p>
+    </div>
+    <button class="btn btn-primary" id="generate-btn">Generate analysis plan</button>
+  </div>
+</div>
+
+<div id="plan-output"></div>
+
+<template id="loading-template">
+  <div class="card border-0 shadow-sm">
+    <div class="card-body d-flex align-items-center gap-3">
+      <div class="spinner-border text-primary" role="status" aria-hidden="true"></div>
+      <div>
+        <div class="fw-semibold">Crunching numbers…</div>
+        <div class="text-muted">Fetching SMLs, simulants, and time/temp defaults.</div>
+      </div>
+    </div>
+  </div>
+</template>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    const foods = new Map();
+    const substances = new Map();
+
+    const foodInput = document.getElementById('food-input');
+    const substanceInput = document.getElementById('substance-input');
+    const foodTags = document.getElementById('food-tags');
+    const substanceTags = document.getElementById('substance-tags');
+    const foodSuggestions = document.getElementById('food-suggestions');
+    const substanceSuggestions = document.getElementById('substance-suggestions');
+    const worstTimeInput = document.getElementById('worst-time');
+    const worstTimeUnit = document.getElementById('worst-time-unit');
+    const worstTempInput = document.getElementById('worst-temp');
+    const planOutput = document.getElementById('plan-output');
+    const generateBtn = document.getElementById('generate-btn');
+
+    function debounce(fn, delay = 200) {
+      let timer;
+      return (...args) => {
+        clearTimeout(timer);
+        timer = setTimeout(() => fn(...args), delay);
+      };
+    }
+
+    function toMinutes(value, unit) {
+      if (value === null || Number.isNaN(value)) return null;
+      if (unit === 'hours') return value * 60;
+      if (unit === 'days') return value * 1440;
+      return value;
+    }
+
+    function renderTags(container, dataMap, countEl) {
+      container.innerHTML = '';
+      dataMap.forEach((label, id) => {
+        const tag = document.createElement('span');
+        tag.className = 'tag';
+        tag.innerHTML = `<span>${label}</span> <button type="button" aria-label="Remove">×</button>`;
+        tag.querySelector('button').addEventListener('click', () => {
+          dataMap.delete(id);
+          renderTags(container, dataMap, countEl);
+        });
+        container.appendChild(tag);
+      });
+      countEl.textContent = `${dataMap.size} selected`;
+    }
+
+    function attachAutocomplete(inputEl, suggestionBox, kind, dataMap, countEl) {
+      inputEl.addEventListener('input', debounce(async (evt) => {
+        const q = evt.target.value.trim();
+        if (!q) {
+          suggestionBox.style.display = 'none';
+          return;
+        }
+        const res = await fetch(`/api/suggest/${kind}?q=${encodeURIComponent(q)}`);
+        if (!res.ok) return;
+        const items = await res.json();
+        suggestionBox.innerHTML = '';
+        if (!items.length) {
+          suggestionBox.style.display = 'none';
+          return;
+        }
+        items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.textContent = item.label;
+          div.addEventListener('click', () => {
+            dataMap.set(item.id, item.label);
+            renderTags(inputEl.id === 'food-input' ? foodTags : substanceTags, dataMap, countEl);
+            inputEl.value = '';
+            suggestionBox.style.display = 'none';
+          });
+          suggestionBox.appendChild(div);
+        });
+        suggestionBox.style.display = 'block';
+      }, 150));
+
+      document.addEventListener('click', (evt) => {
+        if (!suggestionBox.contains(evt.target) && evt.target !== inputEl) {
+          suggestionBox.style.display = 'none';
+        }
+      });
+    }
+
+    attachAutocomplete(foodInput, foodSuggestions, 'foods', foods, document.getElementById('food-count'));
+    attachAutocomplete(substanceInput, substanceSuggestions, 'substances', substances, document.getElementById('substance-count'));
+
+    function renderPlan(data) {
+      if ((!data.foods || !data.foods.length) && (!data.substances || !data.substances.length)) {
+        planOutput.innerHTML = '<div class="alert alert-warning">Add at least one food or substance to build a plan.</div>';
+        return;
+      }
+      const frag = document.createDocumentFragment();
+
+      if (data.foods?.length) {
+        const foodsCard = document.createElement('div');
+        foodsCard.className = 'card shadow-sm border-0 mb-3';
+        foodsCard.innerHTML = `
+          <div class="card-body">
+            <div class="fw-semibold text-uppercase small text-muted mb-2">Foods</div>
+          </div>
+        `;
+        data.foods.forEach(food => {
+          const block = document.createElement('div');
+          block.className = 'plan-block';
+          block.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">${food.name}</div>
+                <div class="text-muted small">${food.description} (Annex III ${food.ref_no})</div>
+              </div>
+              <div class="text-end">
+                <div class="pill tight">FRF: ${food.frf ?? "n/a"}</div>
+                <div class="pill tight">Acidic: ${food.acidic ? "Yes" : "No"}</div>
+              </div>
+            </div>
+            <div class="mt-2">
+              <div class="text-muted small mb-1">Recommended simulants</div>
+              <div class="d-flex flex-wrap gap-2">
+                ${food.simulants.map(sim => `<span class="pill tight">${sim.abbreviation} · ${sim.name}</span>`).join("") || '<span class="text-muted">No simulants linked</span>'}
+              </div>
+            </div>
+          `;
+          foodsCard.querySelector('.card-body').appendChild(block);
+        });
+        frag.appendChild(foodsCard);
+      }
+
+      if (data.substances?.length) {
+        const subCard = document.createElement('div');
+        subCard.className = 'card shadow-sm border-0 mb-3';
+        const body = document.createElement('div');
+        body.className = 'card-body';
+        body.innerHTML = `<div class="fw-semibold text-uppercase small text-muted mb-2">Compounds</div>`;
+        data.substances.forEach(sub => {
+          const block = document.createElement('div');
+          block.className = 'plan-block';
+          const groupLimits = (sub.group_limits || []).map(gl => `<div class="pill tight">Group SML: ${gl.group_sml} ${gl.unit}</div>${gl.specification ? `<div class="text-muted small">${gl.specification}</div>` : ""}`).join("");
+          block.innerHTML = `
+            <div class="d-flex justify-content-between align-items-start">
+              <div>
+                <div class="fw-semibold">CAS ${sub.cas_no}</div>
+                <div class="text-muted small">FCM ${sub.fcm_no} · EC ${sub.ec_ref_no}</div>
+              </div>
+              <div class="text-end">
+                ${sub.sml !== null ? `<div class="pill tight">SML: ${sub.sml} mg/kg</div>` : `<div class="text-muted small">No SML set</div>`}
+                ${sub.use_as_additive_or_ppa !== null ? `<div class="pill tight">Additive/PPA: ${sub.use_as_additive_or_ppa ? "Yes" : "No"}</div>` : ""}
+                ${sub.use_as_monomer_or_starting_substance !== null ? `<div class="pill tight">Monomer/start: ${sub.use_as_monomer_or_starting_substance ? "Yes" : "No"}</div>` : ""}
+                ${sub.frf_applicable !== null ? `<div class="pill tight">FRF: ${sub.frf_applicable ? "Applicable" : "Not applicable"}</div>` : ""}
+              </div>
+            </div>
+            ${groupLimits ? `<div class="mt-2">${groupLimits}</div>` : ""}
+            ${sub.restrictions_and_specifications ? `<div class="mt-2 text-muted">${sub.restrictions_and_specifications}</div>` : ""}
+          `;
+          body.appendChild(block);
+        });
+        subCard.appendChild(body);
+        frag.appendChild(subCard);
+      }
+
+      if (data.time_conditions?.length || data.temp_conditions?.length) {
+        const condCard = document.createElement('div');
+        condCard.className = 'card shadow-sm border-0 mb-3';
+        condCard.innerHTML = `
+          <div class="card-body">
+            <div class="fw-semibold text-uppercase small text-muted mb-2">Test conditions</div>
+            <div class="row g-3">
+              <div class="col-md-6">
+                <div class="fw-semibold">Contact time</div>
+                <div class="text-muted small mb-2">Worst-case vs testing window</div>
+            ${data.time_conditions.map(t => `<div class="pill tight d-inline-block mb-1">${t.worst_case_time_minutes} min → test ${t.testing_time_minutes} min</div>`).join("")}
+                ${data.selected_time_condition ? `<div class="mt-2"><span class="pill tight bg-primary-subtle">Input ${data.worst_case_time_minutes} min → test ${data.selected_time_condition.testing_time_minutes} min</span></div>` : ""}
+              </div>
+              <div class="col-md-6">
+                <div class="fw-semibold">Contact temperature</div>
+                <div class="text-muted small mb-2">Adjust to real interface when above 121°C</div>
+            ${data.temp_conditions.map(t => `<div class="pill tight d-inline-block mb-1">${t.worst_case_temp_celsius}°C → test ${t.testing_temp_celsius}°C${t.note ? ` (${t.note})` : ""}</div>`).join("")}
+                ${data.selected_temp_condition ? `<div class="mt-2"><span class="pill tight bg-primary-subtle">Input ${data.worst_case_temp_celsius}°C → test ${data.selected_temp_condition.testing_temp_celsius}°C</span></div>` : ""}
+              </div>
+            </div>
+          </div>
+        `;
+        frag.appendChild(condCard);
+      }
+
+      planOutput.innerHTML = '';
+      planOutput.appendChild(frag);
+    }
+
+    generateBtn.addEventListener('click', async () => {
+      planOutput.innerHTML = document.getElementById('loading-template').innerHTML;
+      const res = await fetch('/api/generate-plan', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({
+          food_ids: Array.from(foods.keys()),
+          substance_ids: Array.from(substances.keys()),
+          worst_case_time_minutes: worstTimeInput.value ? toMinutes(parseInt(worstTimeInput.value, 10), worstTimeUnit.value) : null,
+          worst_case_temp_celsius: worstTempInput.value ? parseInt(worstTempInput.value, 10) : null,
+        }),
+      });
+      if (!res.ok) {
+        planOutput.innerHTML = '<div class="alert alert-danger">Could not build plan.</div>';
+        return;
+      }
+      const data = await res.json();
+      renderPlan(data);
+    });
+
+    // Render empty state by default.
+    renderPlan({});
+  </script>
+{% endblock %}

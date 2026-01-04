@@ -31,46 +31,44 @@
           <thead>
             <tr>
               <th>CAS number</th>
-              <th>Name / identifier</th>
               <th>Identifiers</th>
-              <th>Limits & notes</th>
+              <th>Use</th>
+              <th>Limits</th>
+              <th>Notes</th>
             </tr>
           </thead>
           <tbody>
             {% for substance in substances %}
               <tr>
                 <td class="fw-semibold">{{ substance.cas_no or "—" }}</td>
-                <td class="text-wrap">{{ substance.smiles or "—" }}</td>
                 <td>
                   <div class="pill tight">FCM {{ substance.fcm_no or "—" }}</div>
                   <div class="pill tight">EC {{ substance.ec_ref_no or "—" }}</div>
                 </td>
                 <td>
-                  {% if substance.sm_entries %}
-                    {% for entry in substance.sm_entries %}
-                      <div class="limit-block">
-                        {% if entry.limits %}
-                          {% for limit in entry.limits %}
-                            <span class="pill tight">
-                              {{ limit.kind.value }}
-                              {% if limit.value is not none %}
-                                {{ "%.3f"|format(limit.value) }}
-                              {% elif limit.raw_expression %}
-                                {{ limit.raw_expression }}
-                              {% endif %}
-                            </span>
-                          {% endfor %}
-                        {% else %}
-                          <span class="text-muted">No SML recorded.</span>
-                        {% endif %}
-                        {% if entry.restrictions_and_specifications %}
-                          <div class="text-muted">{{ entry.restrictions_and_specifications }}</div>
-                        {% endif %}
-                      </div>
-                    {% endfor %}
-                  {% else %}
-                    <span class="text-muted">No Annex I entry stored for this substance.</span>
+                  {% if substance.use_as_additive_or_ppa is not none %}
+                    <div class="pill tight {% if substance.use_as_additive_or_ppa %}bg-primary-subtle{% endif %}">Additive/PPA: {{ "Yes" if substance.use_as_additive_or_ppa else "No" }}</div>
                   {% endif %}
+                  {% if substance.use_as_monomer_or_starting_substance is not none %}
+                    <div class="pill tight {% if substance.use_as_monomer_or_starting_substance %}bg-primary-subtle{% endif %}">Monomer/start: {{ "Yes" if substance.use_as_monomer_or_starting_substance else "No" }}</div>
+                  {% endif %}
+                  {% if substance.frf_applicable is not none %}
+                    <div class="pill tight">FRF: {{ "Applicable" if substance.frf_applicable else "Not applicable" }}</div>
+                  {% endif %}
+                </td>
+                <td>
+                  {% if substance.sml is not none %}
+                    <div class="pill tight">SML: {{ "%.3f"|format(substance.sml) }} mg/kg</div>
+                  {% else %}
+                    <span class="text-muted">No SML recorded.</span>
+                  {% endif %}
+                  {% for gl in substance.group_limits %}
+                    <div class="pill tight">Group SML: {{ gl.group_sml }} {{ gl.unit }}</div>
+                    {% if gl.specification %}<div class="text-muted small">{{ gl.specification }}</div>{% endif %}
+                  {% endfor %}
+                </td>
+                <td class="text-muted">
+                  {{ substance.restrictions_and_specifications or "—" }}
                 </td>
               </tr>
             {% endfor %}
