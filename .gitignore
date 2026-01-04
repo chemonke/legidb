@@ -1,0 +1,21 @@
+# Python artifacts
+__pycache__/
+*.py[cod]
+*.pyo
+.python-version
+
+# Virtual environments
+.venv/
+venv/
+
+# Tooling/IDE
+.direnv/
+.vscode/
+.idea/
+
+# Nix build outputs
+result
+result-*
+
+# OS noise
+.DS_Store
