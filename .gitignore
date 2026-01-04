@@ -19,3 +19,8 @@ result-*
 
 # OS noise
 .DS_Store
+
+# Containers
+.cache
+.local
+.bash_history
