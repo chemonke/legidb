@@ -16,7 +16,11 @@ def render_markdown_to_html(raw: str) -> str:
     try:
         import markdown
 
-        return markdown.markdown(raw, extensions=["fenced_code", "tables", "toc"])
+        html = markdown.markdown(raw, extensions=["fenced_code", "tables", "toc"])
+        # Ensure relative doc assets resolve under /docs/ when rendered in the app.
+        html = html.replace('src="./docs/', 'src="/docs/')
+        html = html.replace('src="docs/', 'src="/docs/')
+        return html
     except Exception:
         pass
 
@@ -29,6 +33,7 @@ def render_markdown_to_html(raw: str) -> str:
     in_list = False
 
     link_pattern = re.compile(r"\[([^\]]+)\]\(([^)]+)\)")
+    image_pattern = re.compile(r"!\[([^\]]*)\]\(([^)]+)\)")
     inline_code_pattern = re.compile(r"`([^`]+)`")
 
     def slugify(text: str) -> str:
@@ -36,16 +41,34 @@ def render_markdown_to_html(raw: str) -> str:
         slug = re.sub(r"[\s]+", "-", slug)
         return html.escape(slug, quote=True)
 
-    def render_links(text: str) -> str:
+    def rewrite_docs_href(href: str) -> str:
+        if href.startswith("./docs/"):
+            return "/docs/" + href[len("./docs/") :]
+        if href.startswith("docs/"):
+            return "/docs/" + href[len("docs/") :]
+        return href
+
+    def render_links_and_images(text: str) -> str:
         result: List[str] = []
         last = 0
-        for match in link_pattern.finditer(text):
+        for match in image_pattern.finditer(text):
             result.append(html.escape(text[last:match.start()]))
+            alt = html.escape(match.group(1))
+            href = html.escape(rewrite_docs_href(match.group(2)), quote=True)
+            result.append(f'<img src="{href}" alt="{alt}">')
+            last = match.end()
+        text_after_images = "".join(result) + html.escape(text[last:])
+
+        result = []
+        last = 0
+        for match in link_pattern.finditer(text_after_images):
+            if match.start() > last:
+                result.append(text_after_images[last:match.start()])
             label = html.escape(match.group(1))
-            href = html.escape(match.group(2), quote=True)
+            href = html.escape(rewrite_docs_href(match.group(2)), quote=True)
             result.append(f'<a href="{href}">{label}</a>')
             last = match.end()
-        result.append(html.escape(text[last:]))
+        result.append(text_after_images[last:])
         return "".join(result)
 
     def render_inline(text: str) -> str:
@@ -54,13 +77,13 @@ def render_markdown_to_html(raw: str) -> str:
         for match in inline_code_pattern.finditer(text):
             # Render preceding text (with links) before inline code
             if match.start() > last:
-                result.append(render_links(text[last:match.start()]))
+                result.append(render_links_and_images(text[last:match.start()]))
             code_content = html.escape(match.group(1))
             result.append(f"<code>{code_content}</code>")
             last = match.end()
         # Trailing text after the last inline code block
         if last < len(text):
-            result.append(render_links(text[last:]))
+            result.append(render_links_and_images(text[last:]))
         return "".join(result)
 
     def close_list():

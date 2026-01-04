@@ -14,6 +14,7 @@
           flask-admin
           sqlalchemy
           pymysql
+          markdown
         ]);
 
         mariadb = pkgs.mariadb;
