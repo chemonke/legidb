@@ -72,6 +72,12 @@
               pathsToLink = [ "/bin" "/etc" "/lib" "/share" ];
             })
           ];
+          extraCommands = ''
+            mkdir -p $out/usr/bin
+            # Provide /usr/bin/env and /usr/bin/bash for scripts with common shebangs.
+            ln -s /bin/env $out/usr/bin/env
+            ln -s /bin/bash $out/usr/bin/bash
+          '';
           config = {
             Env = [
               "DATABASE_URL=mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb"
