@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Start an isolated MariaDB instance under /tmp so nothing is installed system-wide.
 
 set -euo pipefail
@@ -59,6 +59,16 @@ fi
 
 mkdir -p "$DATA_DIR"
 
+# Determine runtime user (drop root privileges in containers).
+RUN_USER="${LEGIDB_MARIADB_USER:-}"
+if [[ "$(id -u)" -eq 0 ]]; then
+  if [[ -z "$RUN_USER" ]]; then
+    if id -u nobody >/dev/null 2>&1; then
+      RUN_USER="nobody"
+    fi
+  fi
+fi
+
 INSTALL_DB_BIN="$(command -v mariadb-install-db || true)"
 if [[ -z "$INSTALL_DB_BIN" ]]; then
   INSTALL_DB_BIN="$(command -v mysql_install_db || true)"
@@ -73,11 +83,19 @@ fi
 if [[ ! -d "$DATA_DIR/mysql" ]]; then
   echo "Initializing MariaDB data dir at $DATA_DIR"
   set +e
-  "$INSTALL_DB_BIN" --no-defaults --datadir="$DATA_DIR" --auth-root-authentication-method=normal >/dev/null 2>&1
+  INSTALL_ARGS=(--no-defaults --datadir="$DATA_DIR" --auth-root-authentication-method=normal)
+  if [[ -n "$RUN_USER" ]]; then
+    INSTALL_ARGS+=(--user="$RUN_USER")
+  fi
+  "$INSTALL_DB_BIN" "${INSTALL_ARGS[@]}" >/dev/null 2>&1
   INIT_STATUS=$?
   if [[ $INIT_STATUS -ne 0 ]]; then
     echo "Retrying init without --auth-root-authentication-method flag"
-    "$INSTALL_DB_BIN" --no-defaults --datadir="$DATA_DIR" >/dev/null
+    INSTALL_ARGS=(--no-defaults --datadir="$DATA_DIR")
+    if [[ -n "$RUN_USER" ]]; then
+      INSTALL_ARGS+=(--user="$RUN_USER")
+    fi
+    "$INSTALL_DB_BIN" "${INSTALL_ARGS[@]}" >/dev/null
   fi
   set -e
 fi
@@ -87,6 +105,19 @@ MYSQLD_BIN="$(command -v mariadbd || command -v mysqld)"
 if [[ -z "$MYSQLD_BIN" ]]; then
   echo "Could not find mariadbd/mysqld on PATH" >&2
   exit 1
+fi
+
+# If running as root (common inside containers), drop privileges to nobody (or specified user) to satisfy MariaDB.
+if [[ -n "$RUN_USER" ]]; then
+  chown -R "$RUN_USER" "$BASE_DIR"
+  chmod 775 "$BASE_DIR" "$DATA_DIR"
+  touch "$PID_FILE" "$LOG_FILE"
+  chown "$RUN_USER" "$PID_FILE" "$LOG_FILE"
+  USER_ARG=(--user="$RUN_USER")
+else
+  # Ensure root can write everything when no drop-user is used.
+  chmod 755 "$BASE_DIR" "$DATA_DIR"
+  USER_ARG=()
 fi
 
 # MariaDB 11.x drops --daemonize; run it in the background explicitly instead.
@@ -100,7 +131,8 @@ fi
   --skip-name-resolve \
   --log-error="$LOG_FILE" \
   --skip-networking=0 \
-  --symbolic-links=0 &
+  --symbolic-links=0 \
+  "${USER_ARG[@]}" &
 MYSQLD_PID=$!
 echo "$MYSQLD_PID" >"$PID_FILE"
 

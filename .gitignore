@@ -1,5 +1,5 @@
 # Python artifacts
-__pycache__/
+app/__pycache__
 *.py[cod]
 *.pyo
 .python-version

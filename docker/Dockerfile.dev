@@ -1,0 +1,16 @@
+FROM nixos/nix:2.18.1
+
+# Keep things simple: run as root, mount your workspace to /workspace, and use Nix
+# inside the container to run the usual flake commands.
+ENV HOME=/root \
+    USER=root \
+    DATABASE_URL=mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb
+
+WORKDIR /workspace
+VOLUME ["/workspace"]
+
+RUN mkdir -p /etc/nix /workspace \
+ && printf "experimental-features = nix-command flakes\nbuild-users-group =\n" > /etc/nix/nix.conf \
+ && git config --system safe.directory /workspace
+
+CMD ["bash"]

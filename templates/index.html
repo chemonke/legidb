@@ -5,9 +5,8 @@
   <div class="card-body">
     <div class="d-flex flex-wrap justify-content-between align-items-start gap-3">
       <div>
-        <div class="text-muted text-uppercase small fw-semibold">LegiDB</div>
-        <h1 class="h3 mb-2">EU 10/2011 quick reference</h1>
-        <p class="mb-0 text-muted">Browse Annex data, grab numbers, move on.</p>
+        <div class="text-muted text-uppercase small fw-semibold"></div>
+        <h1 class="h3 mb-2">Quick reference</h1>
       </div>
       <div class="d-flex flex-wrap gap-2">
         <a class="btn btn-primary" href="{{ url_for('pages.plan') }}">Generate analysis plan</a>
@@ -19,30 +18,22 @@
   </div>
 </div>
 
-<div class="row g-3">
-  <div class="col-md-4">
-    <div class="card h-100 border-0 shadow-sm">
-      <div class="card-body">
-        <div class="fw-semibold text-muted text-uppercase small">Overview</div>
-        <p class="mb-0">Annex I &amp; III tables with food categories, simulants, and substance limits.</p>
-      </div>
+<section id="readme" class="mt-4">
+  <div class="card shadow-sm border-0 mb-3">
+    <div class="card-body d-flex align-items-center justify-content-between flex-wrap gap-2">
+      <h2 class="h5 mb-0">Project README</h2>
+      <span class="badge text-bg-secondary">Context &amp; usage</span>
     </div>
   </div>
-  <div class="col-md-4">
-    <div class="card h-100 border-0 shadow-sm">
-      <div class="card-body">
-        <div class="fw-semibold text-muted text-uppercase small">Workflow</div>
-        <p class="mb-0">Load the DB, search by CAS or name, pull JSON, glance at coverage charts.</p>
+
+  {% if readme_error %}
+    <div class="alert alert-danger">{{ readme_error }}</div>
+  {% else %}
+    <div class="card shadow-sm border-0">
+      <div class="card-body markdown-body">
+        {{ readme_html|safe }}
       </div>
     </div>
-  </div>
-  <div class="col-md-4">
-    <div class="card h-100 border-0 shadow-sm">
-      <div class="card-body">
-        <div class="fw-semibold text-muted text-uppercase small">Data</div>
-        <p class="mb-0">Raw expressions kept as written so you can read restrictions your way.</p>
-      </div>
-    </div>
-  </div>
-</div>
+  {% endif %}
+</section>
 {% endblock %}

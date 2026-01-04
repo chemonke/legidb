@@ -21,7 +21,7 @@
 
         dbStart = pkgs.writeShellApplication {
           name = "db-start";
-          runtimeInputs = [ mariadb pkgs.coreutils ];
+          runtimeInputs = [ mariadb pkgs.coreutils pkgs.gnused ];
           text = ''
             # Substitute store paths for schema/sample when running remotely.
             LEGIDB_SCHEMA_SQL="${./data/schema.sql}" \
@@ -50,61 +50,11 @@
           '';
         };
 
-        dockerDevImage = pkgs.dockerTools.buildLayeredImage {
-          name = "legidb-dev";
-          tag = "latest";
-          # Include the same toolchain as the dev shell so non-Nix users can work from a container.
-          contents = [
-            (pkgs.buildEnv {
-              name = "legidb-dev-env";
-              paths = [
-                pythonEnv
-                mariadb
-                pkgs.nix
-                pkgs.coreutils
-                pkgs.git
-                pkgs.bashInteractive
-                pkgs.findutils
-                pkgs.gnugrep
-                pkgs.gnused
-                pkgs.procps
-                pkgs.cacert
-              ];
-              pathsToLink = [ "/bin" "/etc" "/lib" "/share" ];
-            })
-          ];
-          config = {
-            User = "1000:1000";
-            Env = [
-              "DATABASE_URL=mysql+pymysql://legidb:legidb@127.0.0.1:3307/legidb"
-              "PATH=/bin:/usr/bin:/usr/local/bin"
-              "LC_ALL=C.UTF-8"
-              "HOME=/workspace"
-              "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-              "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-            ];
-            WorkingDir = "/workspace";
-            Volumes = { "/workspace" = {}; };
-            Cmd = [ "bash" ];
-          };
-          extraCommands = ''
-            mkdir -p $out/etc/nix
-            cat > $out/etc/nix/nix.conf <<'EOF'
-experimental-features = nix-command flakes
-build-users-group =
-ssl-cert-file = ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
-EOF
-            mkdir -p $out/etc/ssl/certs
-            ln -sf ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt $out/etc/ssl/certs/ca-certificates.crt
-          '';
-        };
       in {
         packages = {
           "db-start" = dbStart;
           "db-stop" = dbStop;
           app = runApp;
-          docker-image-dev = dockerDevImage;
         };
 
         apps = {
@@ -135,6 +85,6 @@ EOF
           '';
         };
 
-          formatter = pkgs.nixpkgs-fmt;
+        formatter = pkgs.nixpkgs-fmt;
       });
 }

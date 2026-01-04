@@ -56,6 +56,30 @@ header .nav-link:focus {
   min-height: 300px;
 }
 
+.autocomplete-box {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  margin-top: 4px;
+  background: white;
+  border-radius: 10px;
+  border: 1px solid #e5e7eb;
+  width: 100%;
+  max-height: 220px;
+  overflow-y: auto;
+  z-index: 20;
+  display: none;
+}
+
+.autocomplete-item {
+  padding: 10px 12px;
+  cursor: pointer;
+}
+
+.autocomplete-item:hover {
+  background: #f3f4f6;
+}
+
 .markdown-body h1, .markdown-body h2, .markdown-body h3, .markdown-body h4, .markdown-body h5, .markdown-body h6 {
   margin-top: 1.2rem;
   margin-bottom: 0.6rem;

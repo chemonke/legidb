@@ -8,13 +8,15 @@
       <span class="badge text-bg-secondary">CAS or name</span>
     </div>
 
-    <form class="row gy-2 align-items-end mb-3" method="get">
-      <div class="col-md-9">
+    <form id="search-form" class="row gy-2 align-items-end mb-3" method="get">
+      <div class="col-md-9 position-relative">
         <label class="form-label">Query</label>
         <div class="input-group">
           <span class="input-group-text">?</span>
-          <input type="text" class="form-control" name="q" placeholder="67-64-1 or acetic acid" value="{{ query }}">
+          <input id="search-query" type="text" class="form-control" name="q" placeholder="67-64-1, 162, acetic acid" value="{{ query }}" autocomplete="off">
         </div>
+        <div class="autocomplete-box shadow-sm" id="search-suggestions"></div>
+        <div class="form-text">Start typing a CAS, FCM, EC, or name to see suggestions.</div>
       </div>
       <div class="col-md-3 text-md-end">
         <button type="submit" class="btn btn-primary w-100">Search</button>
@@ -58,7 +60,11 @@
                 </td>
                 <td>
                   {% if substance.sml is not none %}
-                    <div class="pill tight">SML: {{ "%.3f"|format(substance.sml) }} mg/kg</div>
+                    {% if substance.sml is number %}
+                      <div class="pill tight">SML: {{ "%.3f"|format(substance.sml) }} mg/kg</div>
+                    {% else %}
+                      <div class="pill tight">SML: {{ substance.sml }}</div>
+                    {% endif %}
                   {% else %}
                     <span class="text-muted">No SML recorded.</span>
                   {% endif %}
@@ -78,4 +84,86 @@
     {% endif %}
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (() => {
+      const input = document.getElementById('search-query');
+      const box = document.getElementById('search-suggestions');
+      const form = document.getElementById('search-form');
+      let suggestions = [];
+
+      const debounce = (fn, delay = 150) => {
+        let timer;
+        return (...args) => {
+          clearTimeout(timer);
+          timer = setTimeout(() => fn(...args), delay);
+        };
+      };
+
+      function hideSuggestions() {
+        box.style.display = 'none';
+        box.innerHTML = '';
+        suggestions = [];
+      }
+
+      function renderSuggestions(items) {
+        box.innerHTML = '';
+        if (!items.length) {
+          hideSuggestions();
+          return;
+        }
+        items.forEach(item => {
+          const div = document.createElement('div');
+          div.className = 'autocomplete-item';
+          div.innerHTML = `
+            <div class="fw-semibold">${item.label}</div>
+            <div class="text-muted small">CAS ${item.cas_no}</div>
+          `;
+          div.addEventListener('click', () => {
+            input.value = item.cas_no || item.label;
+            hideSuggestions();
+            input.focus();
+            if (form) form.submit();
+          });
+          box.appendChild(div);
+        });
+        box.style.display = 'block';
+      }
+
+      const fetchSuggestions = debounce(async (value) => {
+        const q = value.trim();
+        if (!q) {
+          hideSuggestions();
+          return;
+        }
+        const res = await fetch(`/api/suggest/substances?q=${encodeURIComponent(q)}`);
+        if (!res.ok) return;
+        const items = await res.json();
+        suggestions = items;
+        renderSuggestions(items);
+      });
+
+      input.addEventListener('input', (evt) => {
+        fetchSuggestions(evt.target.value || '');
+      });
+
+      input.addEventListener('keydown', (evt) => {
+        if (evt.key === 'Escape') {
+          hideSuggestions();
+        } else if (evt.key === 'Enter' && suggestions.length) {
+          // If user presses Enter while a suggestion list is open, prefer the top suggestion.
+          input.value = suggestions[0].cas_no || suggestions[0].label;
+          hideSuggestions();
+        }
+      });
+
+      document.addEventListener('click', (evt) => {
+        if (!box.contains(evt.target) && evt.target !== input) {
+          hideSuggestions();
+        }
+      });
+    })();
+  </script>
 {% endblock %}

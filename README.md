@@ -2,18 +2,18 @@
 I have this delusion that makes me think laws should be easy to follow. Unfortunately, legislators and authors of legal documents appear to disagree. Laws are written in the most incomprehensible fashion imaginable, information is scattered across a thousand pages and fifteen different documents and, of course, there is no database that one could query to find out which laws one may potentially be violating.
 
 ## Important Definitions
-- (Food) simulant: A compound or mixture intended to mimic the behavior of food in order facilitate migration of compounds from packaging into food.
-- Specific migration: An experimental setup where a product is put into contact with a food simulant for a defined period at a defined temperature. The media produced by this experiment are then analyzed for specific compounds.
-- Specific migration limit (SML): The maximum amount of a compound that is legally peritted to migrate from packaging into food.
+- (Food) simulant: A compound or mixture intended to mimic the behavior of food in order to facilitate migration of compounds from packaging into food.
+- Specific migration: An experimental setup where, a product is put into contact with a food simulant for a defined duration at a defined temperature. The media produced by this experiment are then analyzed for specific compounds.
+- Specific migration limit (SML): The maximum amount of a compound that is legally permitted to migrate from packaging into food.
 
 ## About the project
-I chose the EU regulation 10/2011 `Commission Regulation (EU) No 10/2011 of 14 January 2011 on plastic materials and articles intended to come into contact with food Text with EEA relevance` to create a proof of concept, simply because I am somewhat familiar with the regulation. There is nothing inherently special about the EU in this regard, other regulatory bodies are just as bad, if not worse.
+I chose the EU regulation 10/2011 `Commission Regulation (EU) No 10/2011 of 14 January 2011 on plastic materials and articles intended to come into contact with food Text with EEA relevance` to create a proof of concept, simply because I am somewhat familiar with the regulation. There is nothing inherently special about the EU in this regard. Other regulatory bodies are just as bad, if not worse (looking at you, USFDA).
 
 The regulation outlines rules governing food contact materials (e.g. packaging, cooking utensils, food production components etc.). It also provides specific testing requirements. So, if we model these requirements and limits in a database, we can use queries to tell users which tests they must perform, and which rules/limits apply.
 
 We need to create a suitable schema for the following:
 
-- Annex I: Table 1: Authorized Substances
+- Annex I: Table 1: Authorized substances
 - Annex I: Table 2: Group restrictions of substances
 - Annex III Table 1: List of food simulants
 - Annex III Table 2: List of food simulant assignments
@@ -37,7 +37,7 @@ nix shell nixpkgs#schemacrawler nixpkgs#graphviz --command \
     --output-file=docs/schema.png
 ```
 ## Schema Design Considerations
-Annex I drives everything, so `substances` and `sm_entries` hold the CAS/FCM/EC references plus SML/FRF flags. Group restrictions live in `group_restrictions` with the join table `sm_entry_group_restrictions` to mirror Annex I Table 2. Foods and simulants mirror Annex III: `food_categories` lists categories with FRF hints, `simulants` names them, and `food_category_simulants` expresses the many-to-many assignment. Annex V time/temperature selections are flat reference tables (`sm_time_conditions`, `sm_temp_conditions`) because the regulation expresses them as independent lookups rather than relationships.
+Annex I drives everything, so `substances` and `sm_entries` hold the CAS/FCM/EC references plus SML/FRF (fat reduction factor) flags. Group restrictions live in `group_restrictions` with the join table `sm_entry_group_restrictions` to mirror Annex I Table 2. Foods and simulants mirror Annex III: `food_categories` lists categories with FRF hints, `simulants` names them, and `food_category_simulants` expresses the many-to-many assignment. Annex V time/temperature selections are flat reference tables (`sm_time_conditions`, `sm_temp_conditions`) because the regulation expresses them as independent lookups rather than relationships.
 
 Strictly speaking it would not be necessary to have the table `substances` and `sm_entries` be separate entities in this case, but I opted to do it this way in case I decide to add additional regulations at a later point.
 
@@ -53,20 +53,15 @@ If you want to work on the code, clone the repo and run `nix develop` to enter t
 
 To stop and remove the db use `nix run .#db-stop -- --clean`. If you wish to preserve modifications you made, omit the `-- -- clean` flag.
 
-### Docker
-If you don’t want to install Nix (why not?!), use the dev container that bundles the same tooling as `nix develop`.
+### Docker (nixos/nix base)
+If you are not using Nix (why not?!), build an image that already has Nix installed (based on `nixos/nix`), then run the same `nix run .#…` commands inside it:
 
-- Pull the image (replace the tag if you publish elsewhere):  
-  `docker pull ghcr.io/chemonke/legidb-dev:latest`
-- Run it with your working tree mounted:  
-  `docker run -it --rm -v "$PWD":/workspace -p 5000:5000 -p 3307:3307 ghcr.io/chemonke/legidb-dev:latest`
+- Build: `docker build -t legidb-dev -f docker/Dockerfile.dev .`
+- Run: `docker run -it --rm -v "$PWD":/workspace -p 5000:5000 -p 3307:3307 legidb-dev`
 - Inside the container:  
-  `scripts/start_ephemeral_mariadb.sh` (starts MariaDB on 3307 and loads schema/sample data)  
-  `python run.py` (or `nix run .#app` if you prefer)
-
-To build the image yourself for pushing to a registry:  
-`nix build .#docker-image-dev`
-
+  `nix run .#db-start` (or `scripts/start_ephemeral_mariadb.sh`)  
+  `nix run .#app` (or `python run.py`)  
+  `nix run .#db-stop -- --clean` to tear down the DB
 
 ## Planner API SQL
 The planner API is built from a few simple SQL pulls. Below is a single-query version of the substance block that powers the plan generation. It fetches substances, their specific migration (SM) entries, and any linked group limits in one go.
@@ -111,3 +106,7 @@ How it maps to the planner UI:
 - The `picked_substances` CTE is what the planner uses to render CAS, FCM, EC, SML, FRF flags, and any restriction text.
 - The `group_limits` join provides the “Group SML” badges shown under each compound.
 - Similar helper queries fetch foods plus their simulants (`foods` → `food_categories` → `food_category_simulants` → `simulants`) and the time/temperature tables (`sm_time_conditions`, `sm_temp_conditions`), which are then combined into the final JSON response by the `/api/generate-plan` endpoint.
+
+
+## Disclaimer
+This repo only contains sample data to demonstrate the schema and queries. It is neither complete, not correct. Additionally, there are multiple aspects of the regulation that are not (yet) included, one of them being overall migrations, and the arrhenius equation for contact times <30d, as well as standardized test conditions for special cases (hot-filling, retort)

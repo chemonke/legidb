@@ -1,11 +1,23 @@
 from pathlib import Path
 from typing import Any, Dict, List, Tuple
 
-from flask import Blueprint, render_template, request
+from flask import Blueprint, redirect, render_template, request, url_for
 
 from .db import query
 
 bp = Blueprint("pages", __name__)
+
+
+def load_readme() -> Tuple[str | None, str | None]:
+    """
+    Load README.md and return rendered HTML plus an optional error string.
+    """
+    readme_path = Path(bp.root_path).parent / "README.md"
+    try:
+        raw = readme_path.read_text()
+        return render_markdown_to_html(raw), None
+    except FileNotFoundError as exc:
+        return None, f"README not found: {exc}"
 
 
 def render_markdown_to_html(raw: str) -> str:
@@ -153,7 +165,13 @@ def index():
         """
     )
     totals = rows[0] if rows else None
-    return render_template("index.html", totals=totals)
+    readme_html, readme_error = load_readme()
+    return render_template(
+        "index.html",
+        totals=totals,
+        readme_html=readme_html,
+        readme_error=readme_error,
+    )
 
 
 @bp.route("/search")
@@ -237,15 +255,8 @@ def api_docs():
 
 @bp.route("/about")
 def about():
-    readme_path = Path(bp.root_path).parent / "README.md"
-    try:
-        raw = readme_path.read_text()
-        readme_html = render_markdown_to_html(raw)
-        return render_template("about.html", readme_html=readme_html, readme_error=None)
-    except FileNotFoundError as exc:
-        return render_template(
-            "about.html", readme_html=None, readme_error=f"README not found: {exc}"
-        )
+    # Keep the route for any old links but send users to the overview README section.
+    return redirect(url_for("pages.index", _anchor="readme"))
 
 
 @bp.route("/plan")

@@ -5,4 +5,5 @@ app = create_app()
 
 
 if __name__ == "__main__":
-    app.run(host="127.0.0.1", port=5000, debug=True)
+    # Bind to all interfaces so it is reachable when running inside a container.
+    app.run(host="0.0.0.0", port=5000, debug=True)

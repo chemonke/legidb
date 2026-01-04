@@ -1,4 +1,4 @@
-#!/bin/bash
+#!/usr/bin/env bash
 # Stop the ephemeral MariaDB instance and optionally clean its data dir.
 
 set -euo pipefail

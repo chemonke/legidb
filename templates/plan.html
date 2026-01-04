@@ -59,7 +59,8 @@
       <p class="mb-0 text-muted">Pick foods and compounds, then generate a tailored analysis plan with SMLs, group limits, and simulants.</p>
     </div>
     <div class="text-end">
-      <div class="badge text-bg-primary">Baseline: {{ baseline_time or "?" }} min · {{ baseline_temp or "?" }} °C</div>
+      <div>
+      </div>
     </div>
   </div>
 </div>
@@ -71,7 +72,6 @@
         <div class="fw-semibold text-uppercase small text-muted">Expected contact</div>
         <div class="fw-semibold">Worst-case duration &amp; temperature</div>
       </div>
-      <span class="badge text-bg-secondary">Drives test time/temperature selection</span>
     </div>
     <div id="condition-rows" class="d-flex flex-column gap-3"></div>
     <button class="btn btn-link px-0 mt-2" type="button" id="add-condition">+ Add another condition</button>
@@ -144,7 +144,6 @@
         <div class="fw-semibold text-uppercase small text-muted">Favorites</div>
         <div class="fw-semibold">Save / load plans</div>
       </div>
-      <span class="badge text-bg-secondary">Stores the full JSON result</span>
     </div>
     <div class="row g-2">
       <div class="col-lg-6">

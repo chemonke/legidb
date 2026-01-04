@@ -1,57 +1,6 @@
 {% extends "base.html" %}
 
-{% block head %}
-  <script src="https://www.gstatic.com/charts/loader.js"></script>
-  <script>
-    google.charts.load('current', {'packages':['corechart','table']});
-    google.charts.setOnLoadCallback(drawCharts);
-
-    function drawCharts() {
-      drawFoodCategoryChart();
-      drawSimulantChart();
-    }
-
-    function drawFoodCategoryChart() {
-      const data = new google.visualization.DataTable();
-      data.addColumn('string', 'Category');
-      data.addColumn('number', 'Foods');
-      data.addColumn({type: 'string', role: 'tooltip'});
-      data.addRows([
-        {% for ref_no, description, total, frf in foods_per_category %}
-          ['{{ ref_no }}', {{ total }}, '{{ description }} (FRF: {{ frf if frf is not none else "n/a" }})'],
-        {% endfor %}
-      ]);
-      const options = {
-        title: 'Foods per Annex III category',
-        legend: { position: 'none' },
-        chartArea: { width: '80%', height: '70%' },
-        hAxis: { title: 'Category' },
-        vAxis: { title: 'Foods' }
-      };
-      const chart = new google.visualization.ColumnChart(document.getElementById('food-category-chart'));
-      chart.draw(data, options);
-    }
-
-    function drawSimulantChart() {
-      const data = new google.visualization.DataTable();
-      data.addColumn('string', 'Simulant');
-      data.addColumn('number', 'Linked categories');
-      data.addRows([
-        {% for abbr, name, total in simulants_per_category %}
-          ['{{ abbr }}', {{ total }}],
-        {% endfor %}
-      ]);
-      const options = {
-        title: 'Simulant coverage across categories',
-        legend: { position: 'none' },
-        chartArea: { width: '80%', height: '70%' },
-        colors: ['#1366d6']
-      };
-      const chart = new google.visualization.BarChart(document.getElementById('simulant-chart'));
-      chart.draw(data, options);
-    }
-  </script>
-{% endblock %}
+{% block head %}{% endblock %}
 
 {% block content %}
 <div class="card shadow-sm border-0 mb-3">
@@ -79,4 +28,72 @@
     </div>
   </div>
 </div>
+{% endblock %}
+
+{% block scripts %}
+  <script src="https://www.gstatic.com/charts/loader.js"></script>
+  <script>
+    const foodsPerCategory = {{ foods_per_category | tojson }};
+    const simulantsPerCategory = {{ simulants_per_category | tojson }};
+
+    google.charts.load('current', { packages: ['corechart', 'table'] });
+    google.charts.setOnLoadCallback(() => {
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', drawCharts, { once: true });
+      } else {
+        drawCharts();
+      }
+    });
+
+    function drawCharts() {
+      drawFoodCategoryChart();
+      drawSimulantChart();
+    }
+
+    function drawFoodCategoryChart() {
+      const data = new google.visualization.DataTable();
+      data.addColumn('string', 'Category');
+      data.addColumn('number', 'Foods');
+      data.addColumn({ type: 'string', role: 'tooltip' });
+
+      const rows = foodsPerCategory.map(({ ref_no: refNo, description, total, frf }) => {
+        const tooltip = `${description} (FRF: ${frf ?? 'n/a'})`;
+        return [refNo, Number(total), tooltip];
+      });
+
+      data.addRows(rows);
+      const options = {
+        title: 'Foods per Annex III category',
+        legend: { position: 'none' },
+        chartArea: { width: '80%', height: '70%' },
+        hAxis: { title: 'Category' },
+        vAxis: { title: 'Foods' },
+      };
+      const el = document.getElementById('food-category-chart');
+      if (el) {
+        const chart = new google.visualization.ColumnChart(el);
+        chart.draw(data, options);
+      }
+    }
+
+    function drawSimulantChart() {
+      const data = new google.visualization.DataTable();
+      data.addColumn('string', 'Simulant');
+      data.addColumn('number', 'Linked categories');
+
+      const rows = simulantsPerCategory.map(({ abbreviation, total }) => [abbreviation, Number(total)]);
+      data.addRows(rows);
+      const options = {
+        title: 'Simulant coverage across categories',
+        legend: { position: 'none' },
+        chartArea: { width: '80%', height: '70%' },
+        colors: ['#1366d6'],
+      };
+      const el = document.getElementById('simulant-chart');
+      if (el) {
+        const chart = new google.visualization.BarChart(el);
+        chart.draw(data, options);
+      }
+    }
+  </script>
 {% endblock %}
