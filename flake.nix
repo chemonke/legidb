@@ -81,12 +81,23 @@
               "LC_ALL=C.UTF-8"
               "HOME=/workspace"
               "NIX_SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
-              "NIX_CONFIG=experimental-features = nix-command flakes\nbuild-users-group ="
+              "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
+              "GIT_SSL_CAINFO=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt"
             ];
             WorkingDir = "/workspace";
             Volumes = { "/workspace" = {}; };
             Cmd = [ "bash" ];
           };
+          extraCommands = ''
+            mkdir -p $out/etc/nix
+            cat > $out/etc/nix/nix.conf <<'EOF'
+experimental-features = nix-command flakes
+build-users-group =
+ssl-cert-file = ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt
+EOF
+            mkdir -p $out/etc/ssl/certs
+            ln -sf ${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt $out/etc/ssl/certs/ca-certificates.crt
+          '';
         };
       in {
         packages = {
