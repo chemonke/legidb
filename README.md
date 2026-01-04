@@ -1,49 +1,37 @@
-Contents:
-- [About](#about)
-- [Motivation](#motivation)
-- [Installation](#installation)
-- [Usage](#usage)
-- [Planner API SQL](#planner-api-sql)
-
-## About
-This project keeps a local database of food-contact materials (FCM), simulants, and specific migration limits, and exposes a small Flask UI/API to generate test plans. The `plan` page combines foods, substances, and time/temperature conditions into a JSON plan and a rendered report.
 
 ## Motivation
-I have this delusion that makes me think following laws should be comprehensible and easy to follow (weird, I know). Unfortunately legislators and authors of legal documents appear to disagree.
+I have this delusion that makes me think following laws should be comprehensible and easy to follow (weird, I know). Unfortunately legislators and authors of legal documents appear to disagree. Laws are written in the most incomprehensible fashion imaginable, information is scattered across a thousand pages and fifteen different documents and, of course, there is not only no comprehensive database that one could query to find out what laws one may potentially be violating - there is in fact no public database at all! Unsurprisingly, this gives massive multi-national corporations that can afford to pay a dozen people to do nothing but read legislation all day long an unfair competitive advantage.
+
+## About the project
+I chose the EU regulation 10/2011 `Commission Regulation (EU) No 10/2011 of 14 January 2011 on plastic materials and articles intended to come into contact with food Text with EEA relevance` to create a proof of concept, simply because I am somewhat familiar with the regulation. There is nothing inherently special about the EU in this regard, other regulatory bodies are just as bad, and often worse.
+
+### Schema
+![Descriptive alt text](./docs/schema.png)
+
+generated with `schemacrawler` and `graphviz`
+
+```
+nix shell nixpkgs#schemacrawler nixpkgs#graphviz --command \
+  schemacrawler \
+    --server=mysql \
+    --host=127.0.0.1 --port=3307 \
+    --database=legidb --user=legidb --password=legidb \
+    --info-level=standard \
+    --command=schema \
+    --output-format=png \
+    --output-file=docs/schema.png
+```
 
 ## Installation
 ### Nix (native)
-To simply test ephemerally the page you can initialize the db using 
+To simply test the page you can initialize the db using `nix run github:chemonke/legidb#db-start`
+and start the flask app with `nix run github:chemonke/legidb#app`
+If you have cloned the repo you can do the same with `nix run .#db-start` and `nix run .#app`
 
-`nix run github:chemonke/legidb#db-start`
+If you want to on the code, clone the repo and run `nix develop` to enter the devshell.
 
-and start the flask app using 
+To stop and remove the db use `nix run .#db-stop -- --clean`. If you wish to preserve modifications you made, omit the `-- -- clean` flag.
 
-`nix run github:chemonke/legidb#app`
-
-if you have cloned the repo you can do the same with
-
-`nix run .#db-start` and `nix run .#app`
-
-If you wish to work on the code, clone the repo and run `nix develop` to enter the devshell.
-
-To stop the db use `nix run .#db-stop`, optionally with the `-- --clean` flag to purge its contents.
-
-
-### No Nix? Use the dev container
-We publish (or you can build) a dev image that contains the same toolchain as `nix develop`. It lets non-Nix users work against the repo via Docker.
-
-- Pull the image (replace `ghcr.io/chemonke/legidb-dev:latest` with your registry/tag):  
-  `docker pull ghcr.io/you/legidb-dev:latest`
-- Run it with your working tree mounted:  
-  `docker run -it --rm -v "$PWD":/workspace -p 5000:5000 -p 3307:3307 ghcr.io/you/legidb-dev:latest`
-- Inside the container:  
-  `scripts/start_ephemeral_mariadb.sh` (starts MariaDB on 3307)  
-  `python run.py`
-
-To build the image yourself (for pushing to a registry), run `nix build .#docker-image-dev` and then `docker load < result`.
-
-## Usage
 
 
 ## Planner API SQL
